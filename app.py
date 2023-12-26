@@ -7,6 +7,7 @@ from streamlit_utils import (texto,
                 imagen_con_enlace 
                 )
 from routers.tictactoe_router import tictactoe_model
+from routers.traffic_router import traffic_model
 
 # Configuración de la app
 st.set_page_config(
@@ -57,6 +58,9 @@ def main():
 
     if seleccion_menu == "Tic Tac Toe":
         tictactoe_model()
+    elif seleccion_menu == "Traffic Prediction":
+        traffic_model()
+    
     
         
 if __name__ == '__main__':

@@ -21,6 +21,7 @@ def verificar_dataset_vacio(X_test:pd.DataFrame) -> None:
 def verificar_no_class(X_test:pd.DataFrame, nombres_targets:list=['target', 'label', 'class']) -> None:
     """Verifica que el dataset no tenga variable Targets
     Se le puede pasar el nombre de las columnas a excluir. Por defecto: target, label y class
+    Pasar los nombres siempre en MINÚSCULAS
     """
     for columna in X_test.columns:
         if columna.lower() in nombres_targets:

@@ -1,15 +1,17 @@
-"""Script que recoge la lógica del desafío relacionado con el Tic Tac Toe."""
+"""Script que recoge la lógica del desafío relacionado con la prediction del tráfico
+en un polígono industrial del Pais Vasco."""
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO, StringIO
-from tensorflow import keras
 from typing import Union
-import time
+import joblib
 import os
 import matplotlib.pyplot as plt
+import seaborn as sns
 from matplotlib import colors
+from datetime import datetime
 
 from streamlit_utils import texto, imagen_con_enlace, añadir_salto
 from routers.dataset_val_utils import (verificar_dataset_vacio,
@@ -27,60 +29,38 @@ from routers.metrics_utils import (plotear_matriz_confusion,
                                 )
 from routers.dataset_utils import codificar_labels, y_preds_to_csv
 
-COLUMNAS_CORRECTAS = {'top-left-square', 'top-middle-square', 'top-right-square',
-    'middle-left-square', 'middle-middle-square', 'middle-right-square',
-    'bottom-left-square', 'bottom-middle-square', 'bottom-right-square'}
-VALORES_CORRECTOS = {'x', 'o', 'b'}
-to_colors = {'o': 150,
-            'x': 30,
-            'b': 255}
-inverted_to_color = {v: k for k, v in to_colors.items()}
-labels_map = {"positive": 1, "negative": 0}
+YEAR = 2023
+MONTH = 10
+COLUMNAS_CORRECTAS = {'Time', 'Date', 'Day of the week', 'CarCount',
+                    'BikeCount', 'BusCount', 'TruckCount', 'Total'}
+VEHICULOS = ['CarCount', 'BikeCount', 'BusCount', 'TruckCount']
+DIAS_SEMANA = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+labels_map = {"low": 0, "normal": 1, "high": 2, "heavy": 3}
+day_map = {dia: numero for dia, numero in zip(DIAS_SEMANA, range(1,8))}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
 
-def plot_jugada(X:pd.DataFrame, indice:int, fontsize:int=50) -> plt.Figure:
-    """Devuelve el plot del tablera de 3 en raya con la jugada del índice pasado
-    X es dataframe sin labels
-
-    Parameters
-    ----------
-    X : pd.DataFrame
-        _description_
-    y : pd.Series
-        _description_
-    indice : int
-        _description_
-
-    Raises
-    ------
-    ValueError
-        _description_
-    """
-    cmap = colors.ListedColormap(['black', 'gray', 'white'])
-    bounds=[0, 80, 200, 300]
-    norm = colors.BoundaryNorm(bounds, cmap.N)
-    if isinstance(X, pd.DataFrame):
-        if 'Class' in X.columns:
-            raise ValueError("Hay que pasar X. Elimina la columna 'Class'")
-        jugada_colors = X.iloc[indice, :].map(to_colors).values.reshape(3, 3)
-
-    elif isinstance(X, np.ndarray):
-        jugada_colors = X[indice]
-        if jugada_colors.shape != (3, 3):
-            jugada_colors = jugada_colors.reshape(3, 3)
-    plt.imshow(jugada_colors, cmap=cmap, norm=norm)
-    plt.axis(True)
-    plt.xticks(np.arange(-0.5, 2.5), range(3))
-    plt.yticks(np.arange(-0.5, 2.5), range(3))
-    plt.grid(color='#D3A121', linestyle='--', linewidth=1.5)
-    plt.title(f'Índice: {indice}')
-    for i, _ in enumerate(jugada_colors):
-        for j, q in enumerate(jugada_colors[i]):
-            plt.text(j-0.2, i, inverted_to_color[q], color='w', fontsize=fontsize)
+def plot_densidad_trafico(X_test_raw:pd.DataFrame) -> plt.Figure:
+    new_df = X_test_raw.copy()
+    # Renombramos algunas columnas
+    new_df.rename(
+        columns={"Day of the week": "Day",
+                "Total": "TotalCount"},
+        inplace=True)
+    new_df.Time = pd.to_datetime(new_df.Time, errors="coerce").dt.time
+    new_df['DayNumber'] = new_df.Day.map(day_map)
+    # Calculamos la media de tráfico por cada combinación de día de la semana y hora del día
+    traffic_heatmap_data = new_df.groupby(['DayNumber', 'Hour']).mean(numeric_only=True)['TotalCount'].unstack()
+    # Generamos el mapa de calor
+    plt.figure(figsize=(16, 8));
+    sns.heatmap(traffic_heatmap_data, cmap='viridis', linewidths=.5, annot=True, fmt=".0f");
+    plt.title('Mapa de Calor de Densidad de Tráfico por Hora y Día de la Semana')
+    plt.xlabel('Hora del Día');
+    plt.ylabel('Día de la Semana');
+    plt.yticks(np.arange(7), DIAS_SEMANA, rotation=0)
     return plt
 
-def mostrar_resumen_modelo(model:keras.Model) -> None:
+def mostrar_resumen_modelo(model) -> None:
     # Captura la salida de model.summary()
     stream = StringIO()
     model.summary(print_fn=lambda x: stream.write(x + '\n'))
@@ -88,19 +68,51 @@ def mostrar_resumen_modelo(model:keras.Model) -> None:
     stream.close()
     st.markdown('```' + summary_string + '```')
 
-def preprocess_tictactoe(X:pd.DataFrame, y:pd.Series=None) -> Union[tuple[np.ndarray, pd.Series], tuple[np.ndarray]]:
-    # Creamos copias
-    X_tic = X.copy()
-    # Reemplazamos con ints
-    X_tic = (X_tic.replace(to_colors) / 255.).values.reshape((-1, 3, 3, 1))
-    if y is not None:
-        y_tic = y.copy()
-        # One Shoteamos los labels
-        y_tic = y_tic.replace(labels_map)
-        return X_tic, y_tic
-    return X_tic
+def convert_to_datetime(row) -> datetime:
+    date_str = f"{YEAR}-{MONTH:02d}-{row['Date']:02d} {row['Time']}"
+    return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
 
-def inferir(model:keras.Model, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
+def preprocess_traffic(df:pd.DataFrame) -> pd.DataFrame:
+    """Dado un dataset original, preprocesa las variables de la misma forma
+    en la que han sido procesadas en el training
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataset con los valores procesados
+    """
+    new_df = df.copy()
+    # Renombramos algunas columnas
+    new_df.rename(
+        columns={"Day of the week": "Day",
+                "Total": "TotalCount"},
+        inplace=True)
+    # Transformamos a 24h la columna Time
+    new_df.Time = pd.to_datetime(new_df.Time, errors="coerce").dt.time
+    # Creamos columna DateTime
+    new_df["DateTime"] = new_df.apply(convert_to_datetime, axis=1)
+    # La nombramos como índice
+    new_df.set_index("DateTime", inplace=True)
+    # Añadimos la columna Hora
+    new_df['Hour'] = new_df.index.hour
+    # Añadimos los minutos
+    new_df["Minute"] = new_df.index.minute
+    # Añadimos la columna DayNumber
+    new_df['DayNumber'] = new_df.Day.map(day_map)
+    # Quitamos Day y Time
+    new_df.drop(["Day", "Time"], axis=1, inplace=True)
+    # Renombramos Date por Day
+    new_df.rename(columns={"Date": "Day"}, inplace=True)
+    # Reordenamos en día de la semana, número de dia del mes, hora, minuto
+    new_df = new_df[["DayNumber", "Day", "Hour", "Minute", *VEHICULOS, "TotalCount"]]
+    return new_df
+
+def inferir(model, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
     """Devuelve una tupla con dataframe con y_preds y los y_probs como array
 
     Parameters
@@ -119,15 +131,16 @@ def inferir(model:keras.Model, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndar
     y_preds = (y_conf >= 0.5).astype('int')
     return pd.DataFrame(y_preds, columns=['Class']), y_conf
 
-def tictactoe_model():
-    imagen_con_enlace('https://i.imgur.com/ErNyvlS.jpg', 'https://kopuru.com/challenge/challenge-tic-tac-toe/')
+def traffic_model():
+    imagen_con_enlace('https://i.imgur.com/ghd2KVc.jpg', 
+                    'https://kopuru.com/challenge/prediccion-del-trafico-a-la-entrada-del-poligono-industrial-pais-vasco/')
     añadir_salto()
-    texto("""'En este reto, vamos a jugar (y ganar) al típico 3 en raya. ¿Te apuntas?
-            Esta base de datos codifica el conjunto completo de posibles configuraciones del tablero, al final de los juegos de tres en raya, donde suponemos que “x” ha jugado primero. 
-            El objetivo de este desafío es “ganar por x”.
-            Como se trata de un ejercicio de prueba/entrenamiento, te proponemos que lo resuelvas utilizando 
-            el clasificador XGBoost “extreme gradient boosting” (refuerzo de gradientes extremos) y 10 fold cross validation. 
-            Pero te invitamos a que expandas tu creatividad y nos sorprendas.'""", font_size=15, formato='i')
+    texto("""'Pero este estudio no termina aquí: con esta información la ciudad quiere establecer un modelo predictivo a través del cual, puedan predecir para determinados momentos del día y la semana, si el tráfico en el polígono será elevado, y establecer políticas que mejoren los accesos y el tránsito en estas zonas. Y es aquí donde comienza tu labor: mediante los datos de train que encontrarás en el apartado de “Datos”, deberás:    
+    \n1. Analizar la información facilitada en el apartado de “Datos” y estudiar la calidad de la información recopilada por el sistema de visión a la entrada del polígono.
+    \n2. A través de los datos de entrenamiento (train) desarrollar un modelo de clasificación que, en función de las variables de estudio que consideres más importantes, determine si el tráfico es muy denso, alto, normal o bajo (de acuerdo a la clasificación que encontrarás en el apartado “Datos”)
+    Una vez tengas el modelo entrenado, con los datos de test, podrás aplicar en ellos la lógica de tu modelo, y obtener la clasificación para esos datos no etiquetados. 
+    \n3. Ese resultado será el que deberás subir a Kopuru, para que podamos evaluar tu porcentaje de acierto.
+    ¿Quieres deslumbrar? Si además crees que de tu análisis puede obtenerse más información, adjunta un PDF donde nos cuentes: por qué tu solución es la mejor, y que ideas se te ocurren para aplicar soluciones que mejoren el tráfico, basado en las conclusiones que has obtenido al entrenar tu modelo. Nos encantará ver soluciones que además, aporten un valor a problemas reales.'""", font_size=15, formato='i')
     st.divider()
     texto("Cargar los datos", formato='b')
     añadir_salto()
@@ -140,21 +153,21 @@ def tictactoe_model():
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
         # Verificar que no haya columna label o target o class
-        verificar_no_class(X_test_raw)
+        verificar_no_class(X_test_raw, ['situation'])
         # Verificar que el nombre de las columnas sea el esperado
         verificar_columnas_correctas(X_test_raw, COLUMNAS_CORRECTAS)
         # Verificamos que los valores sean los correcots
-        verificar_valores_concretos(X_test_raw, VALORES_CORRECTOS)
+        #verificar_valores_concretos(X_test_raw, VALORES_CORRECTOS)
         # Preprocesamos el dataset para poder pasarlo por el modelo y lo guardamos en X_test
         try:
-            X_test = preprocess_tictactoe(X_test_raw)
+            X_test = preprocess_traffic(X_test_raw)
         except Exception as e:
-            st.error(f"Se ha producido un error procesando X_test. Error: {e}")
+            st.error(f"Se ha producido un error procesando X_test. Revisa el dataset. Error: {e}")
         st.success('OK')
         # Guardamos en la sesión. Guardamos también el nombre del archivo original
-        if st.session_state.get("tictactoe") is None:
-            st.session_state["tictactoe"] = {}
-        st.session_state["tictactoe"].update({
+        if st.session_state.get("traffic") is None:
+            st.session_state["traffic"] = {}
+        st.session_state["traffic"].update({
             "X_test_raw": X_test_raw,
             "X_test": X_test,
             "X_test_filename": os.path.splitext(X_test_bytes.name)[0]
@@ -164,19 +177,18 @@ def tictactoe_model():
             st.dataframe(X_test_raw, use_container_width=True)        
 
     # Modelo
-    if (X_test:=st.session_state.get("tictactoe", {}).get("X_test", None)) is not None:
+    if (X_test:=st.session_state.get("traffic", {}).get("X_test", None)) is not None:
         st.divider()
         texto("Visualizar", formato='b')
-        with st.expander(f"Expande para visualizar registros de **X_test**"):
-            X_test_raw = st.session_state.get("tictactoe", {}).get("X_test_raw")
-            indice = st.number_input("Escoge un índice", 0, len(X_test) - 1)
-            # Ploteamos el tablero
-            plot = plot_jugada(X_test_raw, indice)
+        with st.expander(f"Expande para visualizar un mapa de calor **X_test**"):
+            X_test_raw = st.session_state.get("traffic", {}).get("X_test_raw")
+            # Ploteamos el map de calor
+            plot = plot_densidad_trafico(X_test_raw)
             st.pyplot(plot)
 
         st.divider()
         texto("Predecir", formato='b')
-        model = keras.models.load_model(r'models\tictactoe_convnet_STM.model')
+        model = joblib.load(r'models\traffic_random_forest_STM.joblib')
         añadir_salto()
         # Mostrar detalles del modelo
         with st.expander("Ver detalles del modelo"):
@@ -189,7 +201,7 @@ def tictactoe_model():
                 with st.spinner("Calculando..."):
                     y_preds, y_prob = inferir(model, X_test)
                 y_preds_raw = y_preds.replace(inverted_labels_map)
-                st.session_state["tictactoe"].update({"y_preds": y_preds,
+                st.session_state["traffic"].update({"y_preds": y_preds,
                                                     "y_preds_raw": y_preds_raw,
                                                     "y_prob": y_prob})
             except Exception as e:
@@ -197,10 +209,10 @@ def tictactoe_model():
                 st.stop()
             st.success("Inferencia completada correctamente.")
 
-        if (y_preds:=st.session_state.get("tictactoe", {}).get("y_preds")) is not None:
-            y_preds_raw = st.session_state.get("tictactoe", {}).get("y_preds_raw")
-            X_test_raw = st.session_state.get("tictactoe", {}).get("X_test_raw")
-            X_test_filename:str = st.session_state.get("tictactoe", {}).get("X_test_filename")
+        if (y_preds:=st.session_state.get("traffic", {}).get("y_preds")) is not None:
+            y_preds_raw = st.session_state.get("traffic", {}).get("y_preds_raw")
+            X_test_raw = st.session_state.get("traffic", {}).get("X_test_raw")
+            X_test_filename:str = st.session_state.get("traffic", {}).get("X_test_filename")
             # Posibilidad de visualizar y_preds
             if st.toggle("Visualizar **y_preds**"):
                 st.dataframe(y_preds_raw, width=200, hide_index=False)            
@@ -229,13 +241,13 @@ def tictactoe_model():
                 # Transformar y_test, pasarlo a 0 y 1. Label Encoder
                 y_test = codificar_labels(y_test_raw, labels_map)
                 # Guardamos en la sesión
-                st.session_state["tictactoe"].update({
+                st.session_state["traffic"].update({
                     "y_test": y_test,
                     "y_test_raw": y_test_raw})
 
             # Evaluación y_preds vs y_test
-            if (y_test:=st.session_state.get("tictactoe", {}).get("y_test")) is not None:
-                y_prob = st.session_state.get("tictactoe", {}).get("y_prob")
+            if (y_test:=st.session_state.get("traffic", {}).get("y_test")) is not None:
+                y_prob = st.session_state.get("traffic", {}).get("y_prob")
                 # Posibilidad de visualizar y_test
                 if st.toggle("Visualizar **y_test**"):
                     st.dataframe(y_test_raw, width=200, hide_index=False)
@@ -275,4 +287,4 @@ def tictactoe_model():
                         st.metric("MCC", f"{mcc:.2%}")
 
 if __name__ == '__main__':
-    tictactoe_model()
+    traffic_model()
