@@ -11,7 +11,7 @@ from routers.tictactoe_router import tictactoe_model
 # Configuración de la app
 st.set_page_config(
     page_title=f"KME Evaluación de Modelos de Desafíos Kopuru",
-    page_icon="🎇",
+    page_icon="🧠", #🎇
     layout="wide",
     initial_sidebar_state="auto",
 )
@@ -61,4 +61,4 @@ def main():
         
 if __name__ == '__main__':
     main()
-    st.session_state
+    #st.session_state

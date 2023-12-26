@@ -1,3 +1,5 @@
+"""Script que recoge la lógica del desafío relacionado con el Tic Tac Toe."""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -6,6 +8,8 @@ from tensorflow import keras
 from typing import Union
 import time
 import os
+import matplotlib.pyplot as plt
+from matplotlib import colors
 
 from streamlit_utils import texto, mostrar_enlace, añadir_salto
 from routers.dataset_val_utils import (verificar_dataset_vacio,
@@ -14,14 +18,14 @@ from routers.dataset_val_utils import (verificar_dataset_vacio,
                                             verificar_y_test_binario,
                                             verificar_columna_unica,
                                             verificar_valores_concretos)
-from routers.dataset_utils import (codificar_labels, 
-                                y_preds_to_csv,
-                                plotear_matriz_confusion,
+from routers.metrics_utils import (plotear_matriz_confusion,
                                 plot_confmat,
                                 plot_roc_auc,
                                 plot_precision_recall_curve,
-                                computar_otras_metricas_binarias
+                                computar_otras_metricas_binarias,
+                                computar_accuracies
                                 )
+from routers.dataset_utils import codificar_labels, y_preds_to_csv
 
 enlace = """
         <span style="
@@ -45,6 +49,47 @@ inverted_to_color = {v: k for k, v in to_colors.items()}
 labels_map = {"positive": 1, "negative": 0}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
+
+def plot_jugada(X:pd.DataFrame, indice:int, fontsize:int=50) -> plt.Figure:
+    """Devuelve el plot del tablera de 3 en raya con la jugada del índice pasado
+    X es dataframe sin labels
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+        _description_
+    y : pd.Series
+        _description_
+    indice : int
+        _description_
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
+    cmap = colors.ListedColormap(['black', 'gray', 'white'])
+    bounds=[0, 80, 200, 300]
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+    if isinstance(X, pd.DataFrame):
+        if 'Class' in X.columns:
+            raise ValueError("Hay que pasar X. Elimina la columna 'Class'")
+        jugada_colors = X.iloc[indice, :].map(to_colors).values.reshape(3, 3)
+
+    elif isinstance(X, np.ndarray):
+        jugada_colors = X[indice]
+        if jugada_colors.shape != (3, 3):
+            jugada_colors = jugada_colors.reshape(3, 3)
+    plt.imshow(jugada_colors, cmap=cmap, norm=norm)
+    plt.axis(True)
+    plt.xticks(np.arange(-0.5, 2.5), range(3))
+    plt.yticks(np.arange(-0.5, 2.5), range(3))
+    plt.grid(color='#D3A121', linestyle='--', linewidth=1.5)
+    plt.title(f'Índice: {indice}')
+    for i, _ in enumerate(jugada_colors):
+        for j, q in enumerate(jugada_colors[i]):
+            plt.text(j-0.2, i, inverted_to_color[q], color='w', fontsize=fontsize)
+    return plt
 
 def mostrar_resumen_modelo(model:keras.Model) -> None:
     # Captura la salida de model.summary()
@@ -132,6 +177,15 @@ def tictactoe_model():
     # Modelo
     if (X_test:=st.session_state.get("tictactoe", {}).get("X_test", None)) is not None:
         st.divider()
+        texto("Visualizar", formato='b')
+        with st.expander(f"Expande para visualizar registros de **X_test**"):
+            X_test_raw = st.session_state.get("tictactoe", {}).get("X_test_raw")
+            indice = st.number_input("Escoge un índice", 0, len(X_test) - 1)
+            # Ploteamos el tablero
+            plot = plot_jugada(X_test_raw, indice)
+            st.pyplot(plot)
+
+        st.divider()
         texto("Predecir", formato='b')
         model = keras.models.load_model(r'models\tictactoe_convnet_STM.model')
         añadir_salto()
@@ -140,10 +194,11 @@ def tictactoe_model():
             mostrar_resumen_modelo(model)
 
         inferir_btn = st.button("Predecir")
-        if inferir_btn:
+        if inferir_btn:            
             # Guardamos en sesión y_preds y y_preds_raw
             try:
-                y_preds, y_prob = inferir(model, X_test)
+                with st.spinner("Calculando..."):
+                    y_preds, y_prob = inferir(model, X_test)
                 y_preds_raw = y_preds.replace(inverted_labels_map)
                 st.session_state["tictactoe"].update({"y_preds": y_preds,
                                                     "y_preds_raw": y_preds_raw,
@@ -185,7 +240,9 @@ def tictactoe_model():
                 # Transformar y_test, pasarlo a 0 y 1. Label Encoder
                 y_test = codificar_labels(y_test_raw, labels_map)
                 # Guardamos en la sesión
-                st.session_state["tictactoe"].update({"y_test": y_test})
+                st.session_state["tictactoe"].update({
+                    "y_test": y_test,
+                    "y_test_raw": y_test_raw})
 
             # Evaluación y_preds vs y_test
             if (y_test:=st.session_state.get("tictactoe", {}).get("y_test")) is not None:
@@ -193,6 +250,14 @@ def tictactoe_model():
                 # Posibilidad de visualizar y_test
                 if st.toggle("Visualizar **y_test**"):
                     st.dataframe(y_test_raw, width=200, hide_index=False)
+                añadir_salto()
+                # Añadimos accuracy y el balanced accuracy
+                col1, col2 = st.columns(2)
+                acc, balanced_acc = computar_accuracies(y_test, y_preds)
+                with col1:
+                    st.metric("Accuracy", f"{acc:.2%}")
+                with col2:
+                    st.metric("Balanced accuracy", f"{balanced_acc:.2%}")
                 añadir_salto()
                 col1, col2 = st.columns(2)
                 with col1:
@@ -211,9 +276,14 @@ def tictactoe_model():
                     st.pyplot(plt)
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
-                    df_metricas = computar_otras_metricas_binarias(y_test, y_preds)
-                    st.dataframe(df_metricas)
-
+                    precision, recall, f1, mcc = computar_otras_metricas_binarias(y_test, y_preds)
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Precision", f"{precision:.2%}")
+                        st.metric("Recall", f"{recall:.2%}")
+                    with col2:
+                        st.metric("F1 score", f"{f1:.2%}")
+                        st.metric("MCC", f"{mcc:.2%}")
 
 if __name__ == '__main__':
     tictactoe_model()
