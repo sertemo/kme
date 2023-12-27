@@ -46,5 +46,5 @@ def y_preds_to_csv(X_test_raw:pd.DataFrame, y_preds_raw:pd.DataFrame, target_col
     y_preds_raw.columns = [target_col_name]
     # Concatenamos los dataset
     X_download = pd.concat([X_test_raw, y_preds_raw], axis=1)
-    output = X_download.to_csv().encode('utf-8')
+    output = X_download.to_csv(index=False).encode('utf-8')
     return output

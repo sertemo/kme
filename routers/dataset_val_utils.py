@@ -32,7 +32,8 @@ def verificar_no_class(X_test:pd.DataFrame, nombres_targets:list=['target', 'lab
 def verificar_columnas_correctas(X_test:pd.DataFrame, columnas_correctas:Iterable) -> None:
     for columna in X_test.columns:
         if columna not in columnas_correctas:
-            st.error(f"**{columna}** no es una columna correcta. Los nombres correctos son: {', '.join(columnas_correctas)}")
+            st.error(f"**{columna}** no es una columna correcta. Los nombres correctos son: **{', '.join(columnas_correctas)}**")
+            st.stop()
 
 def verificar_columna_unica(y_test:pd.DataFrame) -> None:
     """Verifica que haya una sola columna en el dataframe,
@@ -47,7 +48,6 @@ def verificar_columna_unica(y_test:pd.DataFrame) -> None:
         st.error("El dataframe **y_test** solo puede tener 1 columna")
         st.stop()
     
-
 def verificar_y_test_binario(y_test:pd.DataFrame) -> None:
     """Verifica que en la primera columna (y se supone que única) solo haya 2 valores distintos.
     Da igual cuales. 

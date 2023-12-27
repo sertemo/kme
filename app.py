@@ -43,7 +43,7 @@ def main():
                 "Hill Valley",
                 "Traffic Prediction",
             ],
-            default_index=0,
+            default_index=2,
             icons=[ #lista de iconos aqui: https://icons.getbootstrap.com/
                 "grid-3x3",
                 "symmetry-horizontal",
@@ -65,4 +65,4 @@ def main():
         
 if __name__ == '__main__':
     main()
-    #st.session_state
+    st.session_state

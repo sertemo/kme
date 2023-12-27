@@ -6,12 +6,13 @@ import pandas as pd
 import numpy as np
 from io import BytesIO, StringIO
 from typing import Union
-import joblib
+import pickle
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import colors
 from datetime import datetime
+import xgboost as xgb
 
 from streamlit_utils import texto, imagen_con_enlace, añadir_salto
 from routers.dataset_val_utils import (verificar_dataset_vacio,
@@ -46,27 +47,42 @@ def plot_densidad_trafico(X_test_raw:pd.DataFrame) -> plt.Figure:
     new_df.rename(
         columns={"Day of the week": "Day",
                 "Total": "TotalCount"},
-        inplace=True)
+                inplace=True)    
+    # Pasamos a datetime la columna Time
     new_df.Time = pd.to_datetime(new_df.Time, errors="coerce").dt.time
+    # Creamos columna DateTime
+    new_df["DateTime"] = new_df.apply(convert_to_datetime, axis=1)
+    # ordenamos cronologicamente y ponemos esta columna como indice
+    new_df = new_df.sort_values(by=["DateTime"]).reset_index(drop=True)
+    new_df.set_index("DateTime", inplace=True)
+    # Creamos la columna Daynumber con los numeros de semana siendo numeros
     new_df['DayNumber'] = new_df.Day.map(day_map)
+    new_df['Hour'] = new_df.index.hour
     # Calculamos la media de tráfico por cada combinación de día de la semana y hora del día
     traffic_heatmap_data = new_df.groupby(['DayNumber', 'Hour']).mean(numeric_only=True)['TotalCount'].unstack()
     # Generamos el mapa de calor
-    plt.figure(figsize=(16, 8));
-    sns.heatmap(traffic_heatmap_data, cmap='viridis', linewidths=.5, annot=True, fmt=".0f");
-    plt.title('Mapa de Calor de Densidad de Tráfico por Hora y Día de la Semana')
+    plt.figure(figsize=(10, 8));
+    sns.heatmap(traffic_heatmap_data, cmap='viridis', linewidths=.5, annot=True, fmt=".0f", annot_kws={"size":8});
+    plt.title('Mapa de Calor de Densidad de Tráfico medio por Hora y Día de la Semana')
     plt.xlabel('Hora del Día');
     plt.ylabel('Día de la Semana');
     plt.yticks(np.arange(7), DIAS_SEMANA, rotation=0)
     return plt
 
-def mostrar_resumen_modelo(model) -> None:
-    # Captura la salida de model.summary()
-    stream = StringIO()
-    model.summary(print_fn=lambda x: stream.write(x + '\n'))
-    summary_string = stream.getvalue()
-    stream.close()
-    st.markdown('```' + summary_string + '```')
+def mostrar_resumen_modelo(model:xgb.XGBClassifier) -> None:
+    # Mostrar parámetros del modelo
+    params = model.get_params()
+    #st.write("Parámetros del modelo:")
+    #st.json(params)
+    # Mostrar la estructura del modelo (árboles)
+    booster = model.get_booster()
+    tree_dump = booster.get_dump()
+    st.write("Estructura del modelo (primer árbol):")
+    st.code(tree_dump[0])  # Muestra solo el primer árbol
+
+def plot_arbol_decision(model:xgb.XGBClassifier, num_arbol:int=0) -> plt.Figure:
+    xgb.plot_tree(model, num_trees=num_arbol)
+    return plt
 
 def convert_to_datetime(row) -> datetime:
     date_str = f"{YEAR}-{MONTH:02d}-{row['Date']:02d} {row['Time']}"
@@ -85,7 +101,7 @@ def preprocess_traffic(df:pd.DataFrame) -> pd.DataFrame:
     -------
     pd.DataFrame
         Dataset con los valores procesados
-    """
+    """    
     new_df = df.copy()
     # Renombramos algunas columnas
     new_df.rename(
@@ -93,10 +109,10 @@ def preprocess_traffic(df:pd.DataFrame) -> pd.DataFrame:
                 "Total": "TotalCount"},
         inplace=True)
     # Transformamos a 24h la columna Time
-    new_df.Time = pd.to_datetime(new_df.Time, errors="coerce").dt.time
+    new_df.Time = pd.to_datetime(new_df.Time, errors="coerce", format="%I:%M:%S %p").dt.time    
     # Creamos columna DateTime
     new_df["DateTime"] = new_df.apply(convert_to_datetime, axis=1)
-    # La nombramos como índice
+        # La nombramos como índice
     new_df.set_index("DateTime", inplace=True)
     # Añadimos la columna Hora
     new_df['Hour'] = new_df.index.hour
@@ -112,24 +128,11 @@ def preprocess_traffic(df:pd.DataFrame) -> pd.DataFrame:
     new_df = new_df[["DayNumber", "Day", "Hour", "Minute", *VEHICULOS, "TotalCount"]]
     return new_df
 
-def inferir(model, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
-    """Devuelve una tupla con dataframe con y_preds y los y_probs como array
-
-    Parameters
-    ----------
-    model : keras.Model
-        _description_
-    X_test : np.ndarray
-        _description_
-
-    Returns
-    -------
-    tuple[pd.DataFrame, np.ndarray]
-        _description_
-    """
-    y_conf:np.ndarray = model.predict(X_test)
-    y_preds = (y_conf >= 0.5).astype('int')
-    return pd.DataFrame(y_preds, columns=['Class']), y_conf
+def inferir_multiclass(model, X_test:np.ndarray, col_name:str='Class', reverse_mapping:dict=None) -> pd.DataFrame:
+    y_preds:np.ndarray = model.predict(X_test)
+    if reverse_mapping is not None:
+        y_preds:list = [reverse_mapping[label] for label in y_preds]
+    return pd.DataFrame(y_preds, columns=[col_name])
 
 def traffic_model():
     imagen_con_enlace('https://i.imgur.com/ghd2KVc.jpg', 
@@ -145,15 +148,15 @@ def traffic_model():
     texto("Cargar los datos", formato='b')
     añadir_salto()
     # Cargar el X_test con el uploader
-    X_test_bytes = st.file_uploader("Sube el archivo **X_test** en formato csv", type=['csv'])
+    X_test_bytes_traffic = st.file_uploader("Sube el archivo **X_test** en formato csv", type=['csv'])
 
-    if X_test_bytes is not None:
+    if X_test_bytes_traffic is not None:
         # Instanciamos el dataset pasandolo por el método read_csv
-        X_test_raw = pd.read_csv(BytesIO(X_test_bytes.read()), dtype=str)
+        X_test_raw = pd.read_csv(BytesIO(X_test_bytes_traffic.read()))
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
         # Verificar que no haya columna label o target o class
-        verificar_no_class(X_test_raw, ['situation'])
+        verificar_no_class(X_test_raw, ['traffic situation'])
         # Verificar que el nombre de las columnas sea el esperado
         verificar_columnas_correctas(X_test_raw, COLUMNAS_CORRECTAS)
         # Verificamos que los valores sean los correcots
@@ -162,7 +165,8 @@ def traffic_model():
         try:
             X_test = preprocess_traffic(X_test_raw)
         except Exception as e:
-            st.error(f"Se ha producido un error procesando X_test. Revisa el dataset. Error: {e}")
+            st.error(f"Se ha producido un error procesando **X_test**. Revisa el dataset. Si el error persiste contacta con tejedor.moreno@gmail.com. Error: {e}")
+            st.stop()
         st.success('OK')
         # Guardamos en la sesión. Guardamos también el nombre del archivo original
         if st.session_state.get("traffic") is None:
@@ -170,7 +174,7 @@ def traffic_model():
         st.session_state["traffic"].update({
             "X_test_raw": X_test_raw,
             "X_test": X_test,
-            "X_test_filename": os.path.splitext(X_test_bytes.name)[0]
+            "X_test_filename": os.path.splitext(X_test_bytes_traffic.name)[0]
         })
         # Posibilidad de mostrar el dataframe
         if st.toggle("Visualizar **X_test**"):
@@ -188,22 +192,29 @@ def traffic_model():
 
         st.divider()
         texto("Predecir", formato='b')
-        model = joblib.load(r'models\traffic_random_forest_STM.joblib')
+        # TODO: Meter desplegable para elegir entre más modelos ?
+        with open(r'models\traffic_xgboost_STM.pkl', 'rb') as f:            
+            model = pickle.load(f)
         añadir_salto()
         # Mostrar detalles del modelo
-        with st.expander("Ver detalles del modelo"):
-            mostrar_resumen_modelo(model)
+        with st.expander("Ver detalles del modelo **XGBoost**"):
+            plt = plot_arbol_decision(model)
+            st.write("Primera rama")
+            st.pyplot(plt)
+            plt = plot_arbol_decision(model, 1)
+            st.write("Segunda rama")
+            st.pyplot(plt)
 
         inferir_btn = st.button("Predecir")
         if inferir_btn:            
             # Guardamos en sesión y_preds y y_preds_raw
             try:
                 with st.spinner("Calculando..."):
-                    y_preds, y_prob = inferir(model, X_test)
-                y_preds_raw = y_preds.replace(inverted_labels_map)
+                    y_preds = inferir_multiclass(model, X_test, "Traffic Situation")
+                    y_preds_raw = y_preds.replace(inverted_labels_map)
                 st.session_state["traffic"].update({"y_preds": y_preds,
                                                     "y_preds_raw": y_preds_raw,
-                                                    "y_prob": y_prob})
+                                                    })
             except Exception as e:
                 st.error(f"Se ha producido un error al lanzar las predicciones: {e}")
                 st.stop()
@@ -219,11 +230,12 @@ def traffic_model():
             # Boton para descargar                
             st.download_button(
                 label="Descargar predicciones",
-                data=y_preds_to_csv(X_test_raw, y_preds_raw),
-                file_name=X_test_filename + "_with_preds_STM.csv",
+                data=y_preds_to_csv(X_test_raw, y_preds_raw, "Traffic Situation"),
+                file_name="TraficoDataEvaluado_SERGIO TEJEDOR_v02.csv",
                 mime='text/csv',
                 )
             st.divider()
+            # TODO
             texto("Evaluar", formato='b')
             añadir_salto()
             y_test_bytes = st.file_uploader("Sube el archivo **y_test** en formato csv", type=['csv'])
@@ -236,7 +248,7 @@ def traffic_model():
                 # Verificar que solo haya una columna
                 verificar_columna_unica(y_test_raw)
                 # Verificar que sea binario; solo 2 tipos de valores en la columna
-                verificar_y_test_binario(y_test_raw)
+                verificar_y_test_binario(y_test_raw) # TODO Cambiar a valores correctos
                 st.success('OK')
                 # Transformar y_test, pasarlo a 0 y 1. Label Encoder
                 y_test = codificar_labels(y_test_raw, labels_map)
@@ -278,7 +290,7 @@ def traffic_model():
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
                     precision, recall, f1, mcc = computar_otras_metricas_binarias(y_test, y_preds)
-                    col1, col2, col3, col4 = st.columns(4)
+                    col1, col2,  = st.columns(2)
                     with col1:
                         st.metric("Precision", f"{precision:.2%}")
                         st.metric("Recall", f"{recall:.2%}")

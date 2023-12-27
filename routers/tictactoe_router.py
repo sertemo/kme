@@ -132,11 +132,11 @@ def tictactoe_model():
     texto("Cargar los datos", formato='b')
     añadir_salto()
     # Cargar el X_test con el uploader
-    X_test_bytes = st.file_uploader("Sube el archivo **X_test** en formato csv", type=['csv'])
+    X_test_bytes_tictactoe = st.file_uploader("Sube el archivo **X_test** en formato csv", type=['csv'])
 
-    if X_test_bytes is not None:
+    if X_test_bytes_tictactoe is not None:
         # Instanciamos el dataset pasandolo por el método read_csv
-        X_test_raw = pd.read_csv(BytesIO(X_test_bytes.read()), dtype=str)
+        X_test_raw = pd.read_csv(BytesIO(X_test_bytes_tictactoe.read()), dtype=str)
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
         # Verificar que no haya columna label o target o class
@@ -150,6 +150,7 @@ def tictactoe_model():
             X_test = preprocess_tictactoe(X_test_raw)
         except Exception as e:
             st.error(f"Se ha producido un error procesando X_test. Error: {e}")
+            st.stop()
         st.success('OK')
         # Guardamos en la sesión. Guardamos también el nombre del archivo original
         if st.session_state.get("tictactoe") is None:
@@ -157,7 +158,7 @@ def tictactoe_model():
         st.session_state["tictactoe"].update({
             "X_test_raw": X_test_raw,
             "X_test": X_test,
-            "X_test_filename": os.path.splitext(X_test_bytes.name)[0]
+            "X_test_filename": os.path.splitext(X_test_bytes_tictactoe.name)[0]
         })
         # Posibilidad de mostrar el dataframe
         if st.toggle("Visualizar **X_test**"):
@@ -179,7 +180,7 @@ def tictactoe_model():
         model = keras.models.load_model(r'models\tictactoe_convnet_STM.model')
         añadir_salto()
         # Mostrar detalles del modelo
-        with st.expander("Ver detalles del modelo"):
+        with st.expander("Ver detalles del modelo **Convnet**"):
             mostrar_resumen_modelo(model)
 
         inferir_btn = st.button("Predecir")
@@ -266,7 +267,7 @@ def tictactoe_model():
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
                     precision, recall, f1, mcc = computar_otras_metricas_binarias(y_test, y_preds)
-                    col1, col2, col3, col4 = st.columns(4)
+                    col1, col2, = st.columns(2)
                     with col1:
                         st.metric("Precision", f"{precision:.2%}")
                         st.metric("Recall", f"{recall:.2%}")
