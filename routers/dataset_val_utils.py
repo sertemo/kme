@@ -80,3 +80,20 @@ def verificar_valores_concretos(X_test:pd.DataFrame, valores_correctos:Iterable)
     if not X_test.map(lambda x: x in valores_correctos).all().all():
         st.error(f"Hay valores erróneos en el dataset. Los valores correctos son: **{', '.join(valores_correctos)}**")
         st.stop()
+
+def verificar_cantidad_registros(y:pd.DataFrame, y_comparacion:pd.DataFrame) -> None:
+    """Verifica que el número de registros de y sea el mismo que el de
+    y_comparacion. Si no lo es muestar un error
+
+    Parameters
+    ----------
+    y : pd.DataFrame
+        _description_
+    y_comparacion : pd.DataFrame
+        _description_
+    """
+    longitud_y = len(y)
+    longitud_comparacion = len(y_comparacion)
+    if not longitud_y == len(y_comparacion):
+        st.error(f"El número de registros no es correcto. Se esperaban {longitud_comparacion} se han encontrado {longitud_y}")
+        st.stop()

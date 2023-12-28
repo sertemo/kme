@@ -5,3 +5,6 @@ Aplicación para evaluar con el X_test los modelos entrenados para los desafíos
 ### Desafios disponibles
 #### TicTacToe
 ![Alt text](img/tictactoe.JPG)
+
+#### TicTacToe
+![Alt text](img/traffic.JPG)

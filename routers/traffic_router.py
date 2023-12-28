@@ -4,7 +4,7 @@ en un polígono industrial del Pais Vasco."""
 import streamlit as st
 import pandas as pd
 import numpy as np
-from io import BytesIO, StringIO
+from io import BytesIO
 from typing import Union
 import pickle
 import os
@@ -18,14 +18,14 @@ from streamlit_utils import texto, imagen_con_enlace, añadir_salto
 from routers.dataset_val_utils import (verificar_dataset_vacio,
                                             verificar_columnas_correctas,
                                             verificar_no_class,
-                                            verificar_y_test_binario,
+                                            verificar_cantidad_registros,
                                             verificar_columna_unica,
                                             verificar_valores_concretos)
 from routers.metrics_utils import (plotear_matriz_confusion,
                                 plot_confmat,
-                                plot_roc_auc,
+                                plot_roc_auc_multiclass,
                                 plot_precision_recall_curve,
-                                computar_otras_metricas_binarias,
+                                computar_otras_metricas,
                                 computar_accuracies
                                 )
 from routers.dataset_utils import codificar_labels, y_preds_to_csv
@@ -128,11 +128,30 @@ def preprocess_traffic(df:pd.DataFrame) -> pd.DataFrame:
     new_df = new_df[["DayNumber", "Day", "Hour", "Minute", *VEHICULOS, "TotalCount"]]
     return new_df
 
-def inferir_multiclass(model, X_test:np.ndarray, col_name:str='Class', reverse_mapping:dict=None) -> pd.DataFrame:
+def inferir_multiclass(model, X_test:np.ndarray, col_name:str='Class', reverse_mapping:dict=None) -> tuple[pd.DataFrame, np.ndarray]:
+    """Corre el modelo y saca tanto las predicciones como un array de probabilidades
+
+    Parameters
+    ----------
+    model : _type_
+        _description_
+    X_test : np.ndarray
+        _description_
+    col_name : str, optional
+        _description_, by default 'Class'
+    reverse_mapping : dict, optional
+        _description_, by default None
+
+    Returns
+    -------
+    tuple[pd.DataFrame, np.ndarray]
+        _description_
+    """
     y_preds:np.ndarray = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)
     if reverse_mapping is not None:
         y_preds:list = [reverse_mapping[label] for label in y_preds]
-    return pd.DataFrame(y_preds, columns=[col_name])
+    return pd.DataFrame(y_preds, columns=[col_name]), y_prob
 
 def traffic_model():
     imagen_con_enlace('https://i.imgur.com/ghd2KVc.jpg', 
@@ -210,11 +229,11 @@ def traffic_model():
             # Guardamos en sesión y_preds y y_preds_raw
             try:
                 with st.spinner("Calculando..."):
-                    y_preds = inferir_multiclass(model, X_test, "Traffic Situation")
+                    y_preds, y_prob = inferir_multiclass(model, X_test, "Traffic Situation")
                     y_preds_raw = y_preds.replace(inverted_labels_map)
                 st.session_state["traffic"].update({"y_preds": y_preds,
                                                     "y_preds_raw": y_preds_raw,
-                                                    })
+                                                    "y_prob": y_prob})
             except Exception as e:
                 st.error(f"Se ha producido un error al lanzar las predicciones: {e}")
                 st.stop()
@@ -235,7 +254,7 @@ def traffic_model():
                 mime='text/csv',
                 )
             st.divider()
-            # TODO
+
             texto("Evaluar", formato='b')
             añadir_salto()
             y_test_bytes = st.file_uploader("Sube el archivo **y_test** en formato csv", type=['csv'])
@@ -248,9 +267,11 @@ def traffic_model():
                 # Verificar que solo haya una columna
                 verificar_columna_unica(y_test_raw)
                 # Verificar que sea binario; solo 2 tipos de valores en la columna
-                verificar_y_test_binario(y_test_raw) # TODO Cambiar a valores correctos
+                verificar_valores_concretos(y_test_raw, list(labels_map)) # TODO Cambiar a valores correctos
+                # Verificar que haya el mismo numero de valores que en y_preds
+                verificar_cantidad_registros(y_test_raw, y_preds_raw)
                 st.success('OK')
-                # Transformar y_test, pasarlo a 0 y 1. Label Encoder
+                # Label Encoder. Mapeamos 
                 y_test = codificar_labels(y_test_raw, labels_map)
                 # Guardamos en la sesión
                 st.session_state["traffic"].update({
@@ -260,6 +281,7 @@ def traffic_model():
             # Evaluación y_preds vs y_test
             if (y_test:=st.session_state.get("traffic", {}).get("y_test")) is not None:
                 y_prob = st.session_state.get("traffic", {}).get("y_prob")
+                y_test_raw = st.session_state.get("traffic", {}).get("y_test_raw")
                 # Posibilidad de visualizar y_test
                 if st.toggle("Visualizar **y_test**"):
                     st.dataframe(y_test_raw, width=200, hide_index=False)
@@ -275,21 +297,21 @@ def traffic_model():
                 col1, col2 = st.columns(2)
                 with col1:
                     texto("Matriz de Confusión", formato='b', font_size=20)
-                    plt = plot_confmat(y_test, y_preds)
+                    plt = plot_confmat(y_test, y_preds, list(labels_map))
                     st.pyplot(plt) 
                 with col2:
                     texto("ROC AUC", formato='b', font_size=20)
-                    plt = plot_roc_auc(y_test, y_prob)
+                    plt = plot_roc_auc_multiclass(y_test, y_prob, inverted_labels_map)
                     st.pyplot(plt)
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    texto("Curva Precision-Recall", formato='b', font_size=20)
-                    plt = plot_precision_recall_curve(y_test, y_prob)
-                    st.pyplot(plt)
+                añadir_salto(2)
+                col1, col2, col3 = st.columns(3)
+                #with col1:
+                    #texto("Curva Precision-Recall", formato='b', font_size=20)
+                    #plt = plot_precision_recall_curve(y_test, y_prob)
+                    #st.pyplot(plt)
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
-                    precision, recall, f1, mcc = computar_otras_metricas_binarias(y_test, y_preds)
+                    precision, recall, f1, mcc = computar_otras_metricas(y_test, y_preds, list(inverted_labels_map))
                     col1, col2,  = st.columns(2)
                     with col1:
                         st.metric("Precision", f"{precision:.2%}")

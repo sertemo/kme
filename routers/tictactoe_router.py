@@ -22,7 +22,7 @@ from routers.metrics_utils import (plotear_matriz_confusion,
                                 plot_confmat,
                                 plot_roc_auc,
                                 plot_precision_recall_curve,
-                                computar_otras_metricas_binarias,
+                                computar_otras_metricas,
                                 computar_accuracies
                                 )
 from routers.dataset_utils import codificar_labels, y_preds_to_csv
@@ -237,6 +237,7 @@ def tictactoe_model():
             # Evaluación y_preds vs y_test
             if (y_test:=st.session_state.get("tictactoe", {}).get("y_test")) is not None:
                 y_prob = st.session_state.get("tictactoe", {}).get("y_prob")
+                y_test_raw = st.session_state.get("tictactoe", {}).get("y_test_raw")
                 # Posibilidad de visualizar y_test
                 if st.toggle("Visualizar **y_test**"):
                     st.dataframe(y_test_raw, width=200, hide_index=False)
@@ -252,7 +253,7 @@ def tictactoe_model():
                 col1, col2 = st.columns(2)
                 with col1:
                     texto("Matriz de Confusión", formato='b', font_size=20)
-                    plt = plot_confmat(y_test, y_preds)
+                    plt = plot_confmat(y_test, y_preds, list(labels_map))
                     st.pyplot(plt) 
                 with col2:
                     texto("ROC AUC", formato='b', font_size=20)
@@ -266,7 +267,7 @@ def tictactoe_model():
                     st.pyplot(plt)
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
-                    precision, recall, f1, mcc = computar_otras_metricas_binarias(y_test, y_preds)
+                    precision, recall, f1, mcc = computar_otras_metricas(y_test, y_preds)
                     col1, col2, = st.columns(2)
                     with col1:
                         st.metric("Precision", f"{precision:.2%}")

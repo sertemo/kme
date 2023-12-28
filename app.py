@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto",
 )
-VERSION = '1.0'
+VERSION = '0.1'
 etiqueta_version = f"""
         <span style="
         font-size: 20px;
@@ -33,7 +33,9 @@ etiqueta_version = f"""
 
 def main():
     with st.sidebar:
-        texto(f"KME {etiqueta_version}", formato='b', font_size=60, font_family="Courier")
+        # Logo de la app
+        st.image(r'img\logo_app_bandw.png', use_column_width=True)
+        texto(f"🧠KME {etiqueta_version}", formato='b', font_size=50, font_family="Courier")
         texto("Kopuru Model Evaluation", font_size=20)
         añadir_salto()
         seleccion_menu = option_menu(
@@ -52,6 +54,7 @@ def main():
             menu_icon="lightbulb",
             )
         imagen_con_enlace('https://i.imgur.com/q1JiUua.png','https://kopuru.com/', max_width=20)
+        
         st.divider()
         st.caption("STM · 2024")
         # TODO Poner imagen y enlace a Linkedin y a app de chat-cv y GitHub
