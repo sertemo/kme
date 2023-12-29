@@ -218,11 +218,12 @@ def traffic_model():
         # Mostrar detalles del modelo
         with st.expander("Ver detalles del modelo **XGBoost**"):
             plt = plot_arbol_decision(model)
-            st.write("Primera rama")
+            texto("Primera rama", formato='b', font_size=20, centrar=True)
             st.pyplot(plt)
             plt = plot_arbol_decision(model, 1)
-            st.write("Segunda rama")
+            texto("Segunda rama", formato='b', font_size=20, centrar=True)
             st.pyplot(plt)
+            texto("(...)", formato='b', font_size=20, centrar=True)
 
         inferir_btn = st.button("Predecir")
         if inferir_btn:            

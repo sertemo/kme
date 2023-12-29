@@ -8,6 +8,9 @@ from streamlit_utils import (texto,
                 )
 from routers.tictactoe_router import tictactoe_model
 from routers.traffic_router import traffic_model
+from routers.hillvalley_router import hillvalley_model
+
+# TODO: UNITTESTING
 
 # Configuración de la app
 st.set_page_config(
@@ -77,9 +80,11 @@ def main():
         tictactoe_model()
     elif seleccion_menu == "Traffic Prediction":
         traffic_model()
+    elif seleccion_menu == "Hill Valley":
+        hillvalley_model()
     
     
         
 if __name__ == '__main__':
     main()
-    #st.session_state
+    st.session_state
