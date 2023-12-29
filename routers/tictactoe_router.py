@@ -17,7 +17,8 @@ from routers.dataset_val_utils import (verificar_dataset_vacio,
                                             verificar_no_class,
                                             verificar_y_test_binario,
                                             verificar_columna_unica,
-                                            verificar_valores_concretos)
+                                            verificar_valores_concretos,
+                                            verificar_cantidad_registros)
 from routers.metrics_utils import (plotear_matriz_confusion,
                                 plot_confmat,
                                 plot_roc_auc,
@@ -226,6 +227,8 @@ def tictactoe_model():
                 verificar_columna_unica(y_test_raw)
                 # Verificar que sea binario; solo 2 tipos de valores en la columna
                 verificar_y_test_binario(y_test_raw)
+                # Verificar que haya el mismo numero de valores que en y_preds
+                verificar_cantidad_registros(y_test_raw, y_preds_raw)
                 st.success('OK')
                 # Transformar y_test, pasarlo a 0 y 1. Label Encoder
                 y_test = codificar_labels(y_test_raw, labels_map)

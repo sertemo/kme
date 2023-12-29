@@ -30,16 +30,16 @@ etiqueta_version = f"""
         </span>
         """
 
-
 def main():
     with st.sidebar:
-        # Logo de la app
-        st.image(r'img\logo_app_bandw.png', use_column_width=True)
-        texto(f"🧠KME {etiqueta_version}", formato='b', font_size=50, font_family="Courier")
-        texto("Kopuru Model Evaluation", font_size=20)
+        # Logo de la app        
+        imagen_con_enlace('https://i.imgur.com/RxmHMZa.png', 'https://kopuru.com/', centrar=True, max_width=70)
+        texto(f"🧠KME", formato='b', font_size=50, font_family="Courier", centrar=True)
+        texto("Kopuru Model Evaluation", font_size=15, formato='b', centrar=True, color='#a3a3a3')
+        
         añadir_salto()
         seleccion_menu = option_menu(
-            menu_title="Desafíos",
+            menu_title='Desafío', # texto("Desafío", centrar=True, formato='b', font_size=20),
             options=[
                 "Tic Tac Toe", 
                 "Hill Valley",
@@ -53,11 +53,25 @@ def main():
             ],
             menu_icon="lightbulb",
             )
-        imagen_con_enlace('https://i.imgur.com/q1JiUua.png','https://kopuru.com/', max_width=20)
         
         st.divider()
-        st.caption("STM · 2024")
-        # TODO Poner imagen y enlace a Linkedin y a app de chat-cv y GitHub
+        col1, col2, col3, col4, col5 = st.columns(5)            
+        with col2:
+            imagen_con_enlace('https://i.imgur.com/umyrYj9.png',
+                            'https://github.com/sertemo?tab=repositories', 
+                            alt_text='GitHub')
+        with col3:
+            imagen_con_enlace('https://i.imgur.com/hLAeokj.png', 
+                            'https://www.linkedin.com/in/stm84/', 
+                            alt_text='linkedin')
+            #st.caption("STM")
+        with col4:
+            imagen_con_enlace('https://i.imgur.com/Qc8t46o.png', 
+                            'https://stm-cv.streamlit.app/', 
+                            alt_text='Chat-CV')
+
+        texto('tejedor.moreno@gmail.com', centrar=True, font_size=10)
+        texto(f"v{VERSION} 01/2024", centrar=True, font_size=10)
 
     if seleccion_menu == "Tic Tac Toe":
         tictactoe_model()
@@ -68,4 +82,4 @@ def main():
         
 if __name__ == '__main__':
     main()
-    st.session_state
+    #st.session_state

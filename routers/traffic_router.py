@@ -267,7 +267,7 @@ def traffic_model():
                 # Verificar que solo haya una columna
                 verificar_columna_unica(y_test_raw)
                 # Verificar que sea binario; solo 2 tipos de valores en la columna
-                verificar_valores_concretos(y_test_raw, list(labels_map)) # TODO Cambiar a valores correctos
+                verificar_valores_concretos(y_test_raw, list(labels_map))
                 # Verificar que haya el mismo numero de valores que en y_preds
                 verificar_cantidad_registros(y_test_raw, y_preds_raw)
                 st.success('OK')
