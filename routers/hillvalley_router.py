@@ -3,15 +3,14 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from io import BytesIO, StringIO
-from tensorflow import keras
-from typing import Union
-import time
+from io import BytesIO
+from typing import Any
 import os
-import matplotlib.pyplot as plt
+import random
 import pickle
 
 from sklearn.svm import SVC
+from sklearn.preprocessing import label_binarize
 
 from streamlit_utils import texto, imagen_con_enlace, añadir_salto
 from routers.dataset_val_utils import (verificar_dataset_vacio,
@@ -29,7 +28,7 @@ from routers.metrics_utils import (plotear_matriz_confusion,
                                 computar_accuracies
                                 )
 from routers.dataset_utils import codificar_labels, y_preds_to_csv, get_n_outliers
-from routers.plot_utils import plotear_contorno, plotear_boxplot_outliers
+from routers.plot_utils import plotear_contorno, plotear_boxplot_outliers, plot_decision_regions
 
 COLUMNAS_CORRECTAS = {f'V{i}' for i in range(1,101)}
 VALORES_CORRECTOS = {'x', 'o', 'b'}
@@ -37,12 +36,24 @@ labels_map = {"colina": 1, "valle": 0}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
 
-
 def mostrar_resumen_modelo(model:SVC) -> None:
-    # TODO
-    pass
+    """Muestra información de un modelo SVC en streamlit
 
+    Parameters
+    ----------
+    model : SVC
+        _description_
+    """
+    # Mostrar parámetros del modelo
+    params: dict[str, Any] = model.get_params()
+    texto("Parámetros del modelo", centrar=True, font_size=20)
+    st.dataframe(params, use_container_width=True)
 
+    # Mostrar número de vectores de soporte
+    n_support_vectors:np.ndarray = model.n_support_
+    dict_supp = {k: v for k,v in zip(labels_map, n_support_vectors)}
+    texto("Número de vectores de soporte por clase", centrar=True, font_size=20)
+    st.dataframe(dict_supp, use_container_width=True)
 
 def preprocess_hillvalley(df:pd.DataFrame) -> pd.DataFrame:
     """Transforma el dataframe original sin labels en 2 columnas, outliers up y outliers down
@@ -69,7 +80,7 @@ def preprocess_hillvalley(df:pd.DataFrame) -> pd.DataFrame:
     X_outliers.columns = ["OutUp", "OutDown"]
     return X_outliers
 
-def inferir(model:keras.Model, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
+def inferir(model:SVC, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndarray]:
     """Devuelve una tupla con dataframe con y_preds y los y_probs como array
 
     Parameters
@@ -84,8 +95,8 @@ def inferir(model:keras.Model, X_test:np.ndarray) -> tuple[pd.DataFrame, np.ndar
     tuple[pd.DataFrame, np.ndarray]
         _description_
     """
-    y_conf:np.ndarray = model.predict(X_test)
-    y_preds = (y_conf >= 0.5).astype('int')
+    y_conf:np.ndarray = model.predict_proba(X_test)
+    y_preds = model.predict(X_test)
     return pd.DataFrame(y_preds, columns=['Class']), y_conf
 
 def hillvalley_model():
@@ -132,28 +143,30 @@ def hillvalley_model():
         if st.toggle("Visualizar **X_test**"):
             st.dataframe(X_test_raw, use_container_width=True)        
 
-    # Modelo
     if (X_test:=st.session_state.get("hillvalley", {}).get("X_test", None)) is not None:
+        #### VISUALIZAR MODELO ####
         st.divider()
         texto("Visualizar", formato='b')
         with st.expander(f"Expande para visualizar registros de **X_test** en forma gráfica"):
             X_test_raw = st.session_state.get("hillvalley", {}).get("X_test_raw")
-            indice = st.number_input("Escoge un índice y pulsa Enter", 0, len(X_test) - 1)
+            max_indice = len(X_test) - 1
+            indice = st.number_input("Escoge un índice y pulsa Enter", 0, max_indice)
             # Ploteamos el tablero
             plot = plotear_contorno(X_test_raw, indice)
             st.pyplot(plot)
             plot = plotear_boxplot_outliers(X_test_raw, indice)
             st.pyplot(plot)
 
+        #### PREDECIR ####
         st.divider()
         texto("Predecir", formato='b')
         with open(r'models\hillvalley_svc_STM.pkl', 'rb') as f:            
             model = pickle.load(f)
         añadir_salto()
         # Mostrar detalles del modelo
-        with st.expander("Ver detalles del modelo **Convnet**"):
+        with st.expander("Ver detalles del modelo **SVC**"):
             mostrar_resumen_modelo(model)
-
+        
         inferir_btn = st.button("Predecir")
         if inferir_btn:            
             # Guardamos en sesión y_preds y y_preds_raw
@@ -183,6 +196,8 @@ def hillvalley_model():
                 file_name=X_test_filename + "_with_preds_STM.csv",
                 mime='text/csv',
                 )
+            
+            #### EVALUAR ####
             st.divider()
             texto("Evaluar", formato='b')
             añadir_salto()
@@ -190,7 +205,7 @@ def hillvalley_model():
             
             if y_test_bytes is not None:
                 # Instanciamos el dataset pasandolo por el método read_csv
-                y_test_raw = pd.read_csv(BytesIO(y_test_bytes.read()), dtype=str)
+                y_test_raw = pd.read_csv(BytesIO(y_test_bytes.read()))
                 # Verificar que no esté vacío
                 verificar_dataset_vacio(y_test_raw)
                 # Verificar que solo haya una columna
@@ -199,9 +214,11 @@ def hillvalley_model():
                 verificar_y_test_binario(y_test_raw)
                 # Verificar que haya el mismo numero de valores que en y_preds
                 verificar_cantidad_registros(y_test_raw, y_preds_raw)
+                # Verificamos que haya solo 0 y 1
+                verificar_valores_concretos(y_test_raw, [0, 1])
                 st.success('OK')
-                # Transformar y_test, pasarlo a 0 y 1. Label Encoder
-                y_test = codificar_labels(y_test_raw, labels_map)
+                # En este caso No hace falta codificar ya que y_test ya viene codificado
+                y_test = y_test_raw.to_numpy()
                 # Guardamos en la sesión
                 st.session_state["hillvalley"].update({
                     "y_test": y_test,
@@ -230,13 +247,19 @@ def hillvalley_model():
                     st.pyplot(plt) 
                 with col2:
                     texto("ROC AUC", formato='b', font_size=20)
-                    plt = plot_roc_auc(y_test, y_prob)
+                    # y_prob sale con shape n_samples, n_classes. Sacamos el argmax
+                    plt = plot_roc_auc(y_test, y_prob.argmax(axis=1))
                     st.pyplot(plt)
-
+                añadir_salto()
                 col1, col2 = st.columns(2)
                 with col1:
-                    texto("Curva Precision-Recall", formato='b', font_size=20)
-                    plt = plot_precision_recall_curve(y_test, y_prob)
+                    texto("Regiones separación", formato='b', font_size=20)
+                    plt = plot_decision_regions(X_test.values, 
+                                                y_test.flatten(), 
+                                                model, 
+                                                x_label="Outliers por abajo", 
+                                                y_label="Outliers por arriba",
+                                                legend_list=list(labels_map))
                     st.pyplot(plt)
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)

@@ -1,6 +1,5 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
-
 from streamlit_utils import (texto, 
                 añadir_salto, 
                 mostrar_enlace,
@@ -61,13 +60,12 @@ def main():
         col1, col2, col3, col4, col5 = st.columns(5)            
         with col2:
             imagen_con_enlace('https://i.imgur.com/umyrYj9.png',
-                            'https://github.com/sertemo?tab=repositories', 
+                            'https://github.com/sertemo', 
                             alt_text='GitHub')
         with col3:
             imagen_con_enlace('https://i.imgur.com/hLAeokj.png', 
                             'https://www.linkedin.com/in/stm84/', 
                             alt_text='linkedin')
-            #st.caption("STM")
         with col4:
             imagen_con_enlace('https://i.imgur.com/Qc8t46o.png', 
                             'https://stm-cv.streamlit.app/', 
@@ -87,4 +85,4 @@ def main():
         
 if __name__ == '__main__':
     main()
-    st.session_state
+    #st.session_state
