@@ -171,7 +171,7 @@ def tictactoe_model():
         texto("Visualizar", formato='b')
         with st.expander(f"Expande para visualizar registros de **X_test**"):
             X_test_raw = st.session_state.get("tictactoe", {}).get("X_test_raw")
-            indice = st.number_input("Escoge un índice", 0, len(X_test) - 1)
+            indice = st.number_input("Escoge un índice y pulsa Enter", 0, len(X_test) - 1)
             # Ploteamos el tablero
             plot = plot_jugada(X_test_raw, indice)
             st.pyplot(plot)

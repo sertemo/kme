@@ -1,5 +1,5 @@
 """Script que recoge funciones auxiliares relacionadas con las métricas de los modelos.
-Como por ejemplo computar accuracy, plotear gráficos, matrices de confusión etc.
+Como por ejemplo computar accuracy, plotear gráficos de méticas, matrices de confusión etc.
 Las funciones deberán ser de propósito general válidas para cualquier desafío
     """
 

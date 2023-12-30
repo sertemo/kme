@@ -9,7 +9,9 @@ from typing import Union
 import time
 import os
 import matplotlib.pyplot as plt
-from matplotlib import colors
+import pickle
+
+from sklearn.svm import SVC
 
 from streamlit_utils import texto, imagen_con_enlace, añadir_salto
 from routers.dataset_val_utils import (verificar_dataset_vacio,
@@ -26,7 +28,8 @@ from routers.metrics_utils import (plotear_matriz_confusion,
                                 computar_otras_metricas,
                                 computar_accuracies
                                 )
-from routers.dataset_utils import codificar_labels, y_preds_to_csv
+from routers.dataset_utils import codificar_labels, y_preds_to_csv, get_n_outliers
+from routers.plot_utils import plotear_contorno, plotear_boxplot_outliers
 
 COLUMNAS_CORRECTAS = {f'V{i}' for i in range(1,101)}
 VALORES_CORRECTOS = {'x', 'o', 'b'}
@@ -34,58 +37,12 @@ labels_map = {"colina": 1, "valle": 0}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
 
-def plotear_contorno(X:pd.DataFrame, indice:int) -> plt.Figure:
-    n_columnas = len(X.columns)
-    valores_y = X.iloc[indice, :]
-    media = valores_y.mean()
-    maximo = valores_y.max()
-    minimo = valores_y.min()
-    plt.figure(figsize=(14, 4))
-    plt.plot(range(n_columnas), valores_y)
-    plt.axhline(y = media, color = 'r', linestyle = '--')
-    plt.axhline(y = maximo, color = 'g', linestyle = ':')
-    plt.axhline(y = minimo, color = 'g', linestyle = ':')
-    plt.title(f"Muestra: {indice} - Max: {maximo}, Media: {media:.2f}, Min: {minimo}")
-    plt.ylabel("Coordenada Y")
-    return plt
 
-def plotear_boxplot(X:pd.DataFrame, indice:int) -> plt.Figure:
-    plt.figure(figsize=(14, 4))
-    plt.boxplot(X.iloc[indice])
-    plt.tight_layout()
-    return plt
+def mostrar_resumen_modelo(model:SVC) -> None:
+    # TODO
+    pass
 
-def mostrar_resumen_modelo(model:keras.Model) -> None:
-    # Captura la salida de model.summary()
-    stream = StringIO()
-    model.summary(print_fn=lambda x: stream.write(x + '\n'))
-    summary_string = stream.getvalue()
-    stream.close()
-    st.markdown('```' + summary_string + '```')
 
-def get_n_outliers(row:np.ndarray) -> tuple[int]:
-    """Función que recibe un array y retorna una lista con
-    dos elementos: el numero de outliers por arriba
-    y el num de outliers por abajo
-
-    Parameters
-    ----------
-    row : np.ndarray
-        _description_
-
-    Returns
-    -------
-    list
-        _description_
-    """
-    q3 = row.quantile(0.75)
-    q1 = row.quantile(0.25)
-    iqr = q3 - q1
-    bigo_max = q3 + 1.5 * iqr
-    bigo_min = q1 - 1.5 * iqr
-    outliers_up = sum(row > bigo_max)
-    outliers_down = sum(row < bigo_min)
-    return outliers_up, outliers_down
 
 def preprocess_hillvalley(df:pd.DataFrame) -> pd.DataFrame:
     """Transforma el dataframe original sin labels en 2 columnas, outliers up y outliers down
@@ -181,16 +138,17 @@ def hillvalley_model():
         texto("Visualizar", formato='b')
         with st.expander(f"Expande para visualizar registros de **X_test** en forma gráfica"):
             X_test_raw = st.session_state.get("hillvalley", {}).get("X_test_raw")
-            indice = st.number_input("Escoge un índice", 0, len(X_test) - 1)
+            indice = st.number_input("Escoge un índice y pulsa Enter", 0, len(X_test) - 1)
             # Ploteamos el tablero
             plot = plotear_contorno(X_test_raw, indice)
             st.pyplot(plot)
-            plot = plotear_boxplot(X_test_raw, indice)
+            plot = plotear_boxplot_outliers(X_test_raw, indice)
             st.pyplot(plot)
 
         st.divider()
         texto("Predecir", formato='b')
-        model = keras.models.load_model(r'models\tictactoe_convnet_STM.model')
+        with open(r'models\hillvalley_svc_STM.pkl', 'rb') as f:            
+            model = pickle.load(f)
         añadir_salto()
         # Mostrar detalles del modelo
         with st.expander("Ver detalles del modelo **Convnet**"):
@@ -221,7 +179,7 @@ def hillvalley_model():
             # Boton para descargar                
             st.download_button(
                 label="Descargar predicciones",
-                data=y_preds_to_csv(X_test_raw, y_preds_raw),
+                data=y_preds_to_csv(X_test_raw, y_preds, "Class"),
                 file_name=X_test_filename + "_with_preds_STM.csv",
                 mime='text/csv',
                 )

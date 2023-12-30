@@ -48,3 +48,27 @@ def y_preds_to_csv(X_test_raw:pd.DataFrame, y_preds_raw:pd.DataFrame, target_col
     X_download = pd.concat([X_test_raw, y_preds_raw], axis=1)
     output = X_download.to_csv(index=False).encode('utf-8')
     return output
+
+def get_n_outliers(row:np.ndarray) -> tuple[int]:
+    """Función que recibe un array (o registro de un dataset) y retorna una lista con
+    dos elementos: el numero de outliers por arriba
+    y el num de outliers por abajo
+
+    Parameters
+    ----------
+    row : np.ndarray
+        _description_
+
+    Returns
+    -------
+    list
+        _description_
+    """
+    q3 = row.quantile(0.75)
+    q1 = row.quantile(0.25)
+    iqr = q3 - q1
+    bigo_max = q3 + 1.5 * iqr
+    bigo_min = q1 - 1.5 * iqr
+    outliers_up = sum(row > bigo_max)
+    outliers_down = sum(row < bigo_min)
+    return outliers_up, outliers_down
