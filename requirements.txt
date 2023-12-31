@@ -1,4 +1,3 @@
-pip==23.3.2
 streamlit
 streamlit_option_menu==0.3.2
 scikit-learn
@@ -10,4 +9,4 @@ xgboost
 numpy
 pandas
 keras
-#python-graphviz==0.20.1
+graphviz
