@@ -212,6 +212,7 @@ def tictactoe_model():
                 data=y_preds_to_csv(X_test_raw, y_preds_raw),
                 file_name=X_test_filename + "_with_preds_STM.csv",
                 mime='text/csv',
+                help="Descarga el dataset original con las predicciones en csv",
                 )
             st.divider()
             texto("Evaluar", formato='b')

@@ -36,6 +36,7 @@ COLUMNAS_CORRECTAS = {'Time', 'Date', 'Day of the week', 'CarCount',
                     'BikeCount', 'BusCount', 'TruckCount', 'Total'}
 VEHICULOS = ['CarCount', 'BikeCount', 'BusCount', 'TruckCount']
 DIAS_SEMANA = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+FILENAME_CSV = "TraficoDataEvaluado_SERGIO TEJEDOR_v02.csv"
 labels_map = {"low": 0, "normal": 1, "high": 2, "heavy": 3}
 day_map = {dia: numero for dia, numero in zip(DIAS_SEMANA, range(1,8))}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
@@ -251,8 +252,9 @@ def traffic_model():
             st.download_button(
                 label="Descargar predicciones",
                 data=y_preds_to_csv(X_test_raw, y_preds_raw, "Traffic Situation"),
-                file_name="TraficoDataEvaluado_SERGIO TEJEDOR_v02.csv",
+                file_name= FILENAME_CSV,
                 mime='text/csv',
+                help="Descarga el dataset original con las predicciones en csv",
                 )
             st.divider()
 
@@ -306,10 +308,6 @@ def traffic_model():
                     st.pyplot(plt)
                 añadir_salto(2)
                 col1, col2, col3 = st.columns(3)
-                #with col1:
-                    #texto("Curva Precision-Recall", formato='b', font_size=20)
-                    #plt = plot_precision_recall_curve(y_test, y_prob)
-                    #st.pyplot(plt)
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
                     precision, recall, f1, mcc = computar_otras_metricas(y_test, y_preds, list(inverted_labels_map))
