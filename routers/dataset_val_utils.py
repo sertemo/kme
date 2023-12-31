@@ -4,36 +4,60 @@ Serán validaciones generales aplicables a cualquier tipo de dataset
 import streamlit as st
 import pandas as pd
 import numpy as np
-from typing import Iterable
+from typing import Iterable, Union
 
-def verificar_dataset_vacio(X_test:pd.DataFrame) -> None:
+def verificar_dataset_vacio(X_test:pd.DataFrame) -> Union[bool, None]:
     """Verifica que el dataframe tenga registros
 
     Parameters
     ----------
     X_test : pd.DataFrame
         _description_
+    Returns
+    _______
+    bool : Retorna False si no está vacio
     """
     if (len(X_test) == 0):
-        st.error(f"El dataframe subido está vacío.")
+        error_msg = f"El dataframe subido está vacío."
+        st.error(error_msg)
         st.stop()
+    return False
 
-def verificar_no_class(X_test:pd.DataFrame, nombres_targets:list=['target', 'label', 'class']) -> None:
+def verificar_no_class(X_test:pd.DataFrame, nombres_targets:list=['target', 'label', 'class']) -> Union[bool, None]:
     """Verifica que el dataset no tenga variable Targets
     Se le puede pasar el nombre de las columnas a excluir. Por defecto: target, label y class
-    Pasar los nombres siempre en MINÚSCULAS
+    Pasar los nombres siempre en MINÚSCULAS.
+    Devuelve True si efectivamente no hay columna clase
     """
     for columna in X_test.columns:
         if columna.lower() in nombres_targets:
-            st.error(f"La columna **{columna}** no está permitida. Es necesario pasar X_test sin los targets")
+            error_msg = f"La columna **{columna}** no está permitida. Es necesario pasar X_test sin los targets"
+            st.error(error_msg)
             st.stop()
             break
+    return True
 
-def verificar_columnas_correctas(X_test:pd.DataFrame, columnas_correctas:Iterable) -> None:
+def verificar_columnas_correctas(X_test:pd.DataFrame, columnas_correctas:Iterable) -> Union[bool, None]:
+    """Verifica si el nombre de las columnas de un dataset son las correctas y se corresponden
+    con las pasadas por columnas_correctas
+
+    Parameters
+    ----------
+    X_test : pd.DataFrame
+        _description_
+    columnas_correctas : Iterable
+        _description_
+
+    Returns
+    -------
+    _type_
+        Devuelve True si son correctas
+    """
     for columna in X_test.columns:
         if columna not in columnas_correctas:
             st.error(f"**{columna}** no es una columna correcta. Los nombres correctos son: **{', '.join(columnas_correctas)}**")
             st.stop()
+    return True
 
 def verificar_columna_unica(y_test:pd.DataFrame) -> None:
     """Verifica que haya una sola columna en el dataframe,
@@ -47,7 +71,7 @@ def verificar_columna_unica(y_test:pd.DataFrame) -> None:
     if len(y_test.columns) > 1:
         st.error("El dataframe **y_test** solo puede tener 1 columna")
         st.stop()
-    
+
 def verificar_y_test_binario(y_test:pd.DataFrame) -> None:
     """Verifica que en la primera columna (y se supone que única) solo haya 2 valores distintos.
     Da igual cuales. 
