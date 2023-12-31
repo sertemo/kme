@@ -11,3 +11,6 @@ Aplicación para evaluar con el X_test los modelos entrenados para los desafíos
 
 #### Hill vs Valley
 ![Alt text](img/hillvalley.JPG)
+
+## Actualmente en desarrollo
+- Unittesting
