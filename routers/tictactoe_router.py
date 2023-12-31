@@ -178,7 +178,7 @@ def tictactoe_model():
 
         st.divider()
         texto("Predecir", formato='b')
-        model = keras.models.load_model(r'models\tictactoe_convnet_STM.model')
+        model = keras.models.load_model('models/tictactoe_convnet_STM.model')
         añadir_salto()
         # Mostrar detalles del modelo
         with st.expander("Ver detalles del modelo **Convnet**"):
