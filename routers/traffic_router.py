@@ -49,7 +49,7 @@ def plot_densidad_trafico(X_test_raw:pd.DataFrame) -> plt.Figure:
                 "Total": "TotalCount"},
                 inplace=True)    
     # Pasamos a datetime la columna Time
-    new_df.Time = pd.to_datetime(new_df.Time, errors="coerce").dt.time
+    new_df.Time = pd.to_datetime(new_df.Time, errors="coerce", format="%I:%M:%S %p").dt.time
     # Creamos columna DateTime
     new_df["DateTime"] = new_df.apply(convert_to_datetime, axis=1)
     # ordenamos cronologicamente y ponemos esta columna como indice
@@ -212,7 +212,7 @@ def traffic_model():
         st.divider()
         texto("Predecir", formato='b')
         # TODO: Meter desplegable para elegir entre más modelos ?
-        with open(r'models\traffic_xgboost_STM.pkl', 'rb') as f:            
+        with open('models/traffic_xgboost_STM.pkl', 'rb') as f:            
             model = pickle.load(f)
         añadir_salto()
         # Mostrar detalles del modelo

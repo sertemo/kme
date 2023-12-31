@@ -160,7 +160,7 @@ def hillvalley_model():
         #### PREDECIR ####
         st.divider()
         texto("Predecir", formato='b')
-        with open(r'models\hillvalley_svc_STM.pkl', 'rb') as f:            
+        with open('models/hillvalley_svc_STM.pkl', 'rb') as f:            
             model = pickle.load(f)
         añadir_salto()
         # Mostrar detalles del modelo
