@@ -1,10 +1,11 @@
+pip==23.3.2
 streamlit
 streamlit_option_menu==0.3.2
 scikit-learn
 scipy
 seaborn
 python-dateutil
-python-graphviz
+python-graphviz==0.20.1
 tensorflow
 xgboost
 numpy
