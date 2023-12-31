@@ -51,7 +51,7 @@ def main():
             icons=[ #lista de iconos aqui: https://icons.getbootstrap.com/
                 "grid-3x3",
                 "symmetry-horizontal",
-                "car-front-fill",
+                "car-front",
             ],
             menu_icon="lightbulb",
             )
