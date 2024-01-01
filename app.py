@@ -46,12 +46,14 @@ def main():
                 "Tic Tac Toe", 
                 "Hill Valley",
                 "Traffic Prediction",
+                "Diabetes",
             ],
             default_index=2,
             icons=[ #lista de iconos aqui: https://icons.getbootstrap.com/
                 "grid-3x3",
                 "symmetry-horizontal",
                 "car-front",
+                "capsule"
             ],
             menu_icon="lightbulb",
             )
@@ -80,6 +82,8 @@ def main():
         traffic_model()
     elif seleccion_menu == "Hill Valley":
         hillvalley_model()
+    elif seleccion_menu == "Diabetes":
+        pass
     
     
         
