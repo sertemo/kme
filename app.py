@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto",
 )
-VERSION = '0.1'
+VERSION = '0.4'
 etiqueta_version = f"""
         <span style="
         font-size: 20px;
