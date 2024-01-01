@@ -8,6 +8,7 @@ from streamlit_utils import (texto,
 from routers.tictactoe_router import tictactoe_model
 from routers.traffic_router import traffic_model
 from routers.hillvalley_router import hillvalley_model
+from routers.diabetes_router import diabetes_model
 
 # TODO: UNITTESTING
 
@@ -83,7 +84,7 @@ def main():
     elif seleccion_menu == "Hill Valley":
         hillvalley_model()
     elif seleccion_menu == "Diabetes":
-        pass
+        diabetes_model()
     
     
         
