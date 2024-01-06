@@ -8,6 +8,7 @@ from streamlit_utils import (texto,
 from routers.tictactoe_router import tictactoe_model
 from routers.traffic_router import traffic_model
 from routers.hillvalley_router import hillvalley_model
+from routers.diabetes_router import diabetes_model
 
 # TODO: UNITTESTING
 
@@ -18,7 +19,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto",
 )
-VERSION = '0.1'
+VERSION = '0.4'
 etiqueta_version = f"""
         <span style="
         font-size: 20px;
@@ -46,12 +47,14 @@ def main():
                 "Tic Tac Toe", 
                 "Hill Valley",
                 "Traffic Prediction",
+                "Diabetes",
             ],
             default_index=2,
             icons=[ #lista de iconos aqui: https://icons.getbootstrap.com/
                 "grid-3x3",
                 "symmetry-horizontal",
                 "car-front",
+                "capsule"
             ],
             menu_icon="lightbulb",
             )
@@ -80,6 +83,8 @@ def main():
         traffic_model()
     elif seleccion_menu == "Hill Valley":
         hillvalley_model()
+    elif seleccion_menu == "Diabetes":
+        diabetes_model()
     
     
         
