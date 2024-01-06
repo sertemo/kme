@@ -9,7 +9,7 @@ from streamlit_utils import texto, imagen_con_enlace, añadir_salto
 
 
 def diabetes_model():
-    texto("En construcción", centrar=True, color='#ccc71d') #! A Borrar cuando se termine de desarrollar. GitFlow 
+    texto("🚧 En construcción 🚧", centrar=True, color='#ccc71d') #! A Borrar cuando se termine de desarrollar. GitFlow 
     imagen_con_enlace('https://i.imgur.com/RsW32VA.jpg', 'https://kopuru.com/challenge/diabetes-challenge-de-entrenamiento/')
     añadir_salto()
     texto("""'La diabetes es una enfermedad crónica que se caracteriza por generar niveles altos de glucosa en sangre. 
