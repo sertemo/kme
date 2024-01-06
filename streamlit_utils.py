@@ -42,15 +42,23 @@ def añadir_salto(num_saltos:int=1) -> None:
     saltos = f"{num_saltos * '<br>'}"
     st.markdown(saltos, unsafe_allow_html=True)
 
-def imagen_con_enlace(url_imagen, url_enlace, alt_text="Imagen", max_width:int=100, centrar:bool=False) -> None:
-    """Muestra una imagen que es también un hipervínculo en Streamlit.
+def imagen_con_enlace(url_imagen, url_enlace, 
+                    alt_text="Imagen", 
+                    max_width:int=100, 
+                    centrar:bool=False, 
+                    radio_borde:int=15,
+                    ) -> None:
+    """Muestra una imagen que es también un hipervínculo en Streamlit con bordes redondeados.
 
     Args:
     url_imagen (str): URL de la imagen a mostrar.
     url_enlace (str): URL a la que el enlace de la imagen debe dirigir.
     alt_text (str): Texto alternativo para la imagen.
+    max_width (int): Ancho máximo de la imagen como porcentaje.
+    centrar (bool): Si es verdadero, centra la imagen.
+    radio_borde (int): Radio del borde redondeado en píxeles.
     """    
-    html = f'<a href="{url_enlace}" target="_blank"><img src="{url_imagen}" alt="{alt_text}" style="max-width:{max_width}%; height:auto;"></a>'
+    html = f'<a href="{url_enlace}" target="_blank"><img src="{url_imagen}" alt="{alt_text}" style="max-width:{max_width}%; height:auto; border-radius:{radio_borde}px;"></a>'
     if centrar:
         html = f"""
                     <div style='text-align: center'>
