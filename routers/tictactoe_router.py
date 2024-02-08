@@ -39,7 +39,7 @@ inverted_to_color = {v: k for k, v in to_colors.items()}
 labels_map = {"positive": 1, "negative": 0}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
-@st.cache_data()
+@st.cache_resource()
 def plot_jugada(X:pd.DataFrame, indice:int, fontsize:int=50) -> plt.Figure:
     """Devuelve el plot del tablera de 3 en raya con la jugada del índice pasado
     X es dataframe sin labels
