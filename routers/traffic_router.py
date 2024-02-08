@@ -41,7 +41,6 @@ labels_map = {"low": 0, "normal": 1, "high": 2, "heavy": 3}
 day_map = {dia: numero for dia, numero in zip(DIAS_SEMANA, range(1,8))}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
-@st.cache_data()
 def plot_densidad_trafico(X_test_raw:pd.DataFrame) -> plt.Figure:
     new_df = X_test_raw.copy()
     # Renombramos algunas columnas
@@ -83,6 +82,19 @@ def mostrar_resumen_modelo(model:xgb.XGBClassifier) -> None:
 
 @st.cache_data()
 def load_df(df_bytes) -> pd.DataFrame:
+    """recibe el objeto UploadedFile de Streamlit
+    y los convierte en dataframe
+
+    Parameters
+    ----------
+    df_bytes : _type_
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     return pd.read_csv(BytesIO(df_bytes.read()))
 
 def plot_arbol_decision(model:xgb.XGBClassifier, num_arbol:int=0) -> plt.Figure:
