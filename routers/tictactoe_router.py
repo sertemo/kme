@@ -39,7 +39,7 @@ inverted_to_color = {v: k for k, v in to_colors.items()}
 labels_map = {"positive": 1, "negative": 0}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
-
+@st.cache_data()
 def plot_jugada(X:pd.DataFrame, indice:int, fontsize:int=50) -> plt.Figure:
     """Devuelve el plot del tablera de 3 en raya con la jugada del índice pasado
     X es dataframe sin labels
@@ -81,6 +81,9 @@ def plot_jugada(X:pd.DataFrame, indice:int, fontsize:int=50) -> plt.Figure:
             plt.text(j-0.2, i, inverted_to_color[q], color='w', fontsize=fontsize)
     return plt
 
+def load_df(df_bytes) -> pd.DataFrame:
+    return pd.read_csv(BytesIO(df_bytes.read()), dtype=str)
+
 def mostrar_resumen_modelo(model:keras.Model) -> None:
     # Captura la salida de model.summary()
     stream = StringIO()
@@ -89,6 +92,7 @@ def mostrar_resumen_modelo(model:keras.Model) -> None:
     stream.close()
     st.markdown('```' + summary_string + '```')
 
+@ st.cache_data()
 def preprocess_tictactoe(X:pd.DataFrame, y:pd.Series=None) -> Union[tuple[np.ndarray, pd.Series], tuple[np.ndarray]]:
     # Creamos copias
     X_tic = X.copy()
@@ -137,7 +141,7 @@ def tictactoe_model():
 
     if X_test_bytes_tictactoe is not None:
         # Instanciamos el dataset pasandolo por el método read_csv
-        X_test_raw = pd.read_csv(BytesIO(X_test_bytes_tictactoe.read()), dtype=str)
+        X_test_raw = load_df(X_test_bytes_tictactoe)
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
         # Verificar que no haya columna label o target o class
@@ -221,7 +225,7 @@ def tictactoe_model():
             
             if y_test_bytes is not None:
                 # Instanciamos el dataset pasandolo por el método read_csv
-                y_test_raw = pd.read_csv(BytesIO(y_test_bytes.read()), dtype=str)
+                y_test_raw = load_df(y_test_bytes)
                 # Verificar que no esté vacío
                 verificar_dataset_vacio(y_test_raw)
                 # Verificar que solo haya una columna

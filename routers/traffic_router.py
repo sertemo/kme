@@ -41,7 +41,7 @@ labels_map = {"low": 0, "normal": 1, "high": 2, "heavy": 3}
 day_map = {dia: numero for dia, numero in zip(DIAS_SEMANA, range(1,8))}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
-
+@st.cache_data()
 def plot_densidad_trafico(X_test_raw:pd.DataFrame) -> plt.Figure:
     new_df = X_test_raw.copy()
     # Renombramos algunas columnas
@@ -81,6 +81,11 @@ def mostrar_resumen_modelo(model:xgb.XGBClassifier) -> None:
     st.write("Estructura del modelo (primer árbol):")
     st.code(tree_dump[0])  # Muestra solo el primer árbol
 
+@st.cache_data()
+def load_df(df_bytes) -> pd.DataFrame:
+    return pd.read_csv(BytesIO(df_bytes.read()))
+
+@st.cache_data()
 def plot_arbol_decision(model:xgb.XGBClassifier, num_arbol:int=0) -> plt.Figure:
     xgb.plot_tree(model, num_trees=num_arbol)
     return plt
@@ -89,6 +94,7 @@ def convert_to_datetime(row) -> datetime:
     date_str = f"{YEAR}-{MONTH:02d}-{row['Date']:02d} {row['Time']}"
     return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
 
+@st.cache_data()
 def preprocess_traffic(df:pd.DataFrame) -> pd.DataFrame:
     """Dado un dataset original, preprocesa las variables de la misma forma
     en la que han sido procesadas en el training
@@ -172,7 +178,7 @@ def traffic_model():
 
     if X_test_bytes_traffic is not None:
         # Instanciamos el dataset pasandolo por el método read_csv
-        X_test_raw = pd.read_csv(BytesIO(X_test_bytes_traffic.read()))
+        X_test_raw = load_df(X_test_bytes_traffic)
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
         # Verificar que no haya columna label o target o class
@@ -264,7 +270,7 @@ def traffic_model():
             
             if y_test_bytes is not None:
                 # Instanciamos el dataset pasandolo por el método read_csv
-                y_test_raw = pd.read_csv(BytesIO(y_test_bytes.read()), dtype=str)
+                y_test_raw = load_df(y_test_bytes)
                 # Verificar que no esté vacío
                 verificar_dataset_vacio(y_test_raw)
                 # Verificar que solo haya una columna
