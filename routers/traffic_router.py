@@ -85,7 +85,6 @@ def mostrar_resumen_modelo(model:xgb.XGBClassifier) -> None:
 def load_df(df_bytes) -> pd.DataFrame:
     return pd.read_csv(BytesIO(df_bytes.read()))
 
-@st.cache_resource()
 def plot_arbol_decision(model:xgb.XGBClassifier, num_arbol:int=0) -> plt.Figure:
     xgb.plot_tree(model, num_trees=num_arbol)
     return plt
