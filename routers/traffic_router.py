@@ -41,7 +41,7 @@ labels_map = {"low": 0, "normal": 1, "high": 2, "heavy": 3}
 day_map = {dia: numero for dia, numero in zip(DIAS_SEMANA, range(1,8))}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
-@st.cache_data()
+@st.cache_resource()
 def plot_densidad_trafico(X_test_raw:pd.DataFrame) -> plt.Figure:
     new_df = X_test_raw.copy()
     # Renombramos algunas columnas
