@@ -80,6 +80,12 @@ def mostrar_resumen_modelo(model:xgb.XGBClassifier) -> None:
     st.write("Estructura del modelo (primer árbol):")
     st.code(tree_dump[0])  # Muestra solo el primer árbol
 
+@st.cache_resource()
+def load_model(model_path:str) -> xgb.XGBClassifier:
+    with open(model_path, 'rb') as f:            
+            model = pickle.load(f)
+    return model
+
 @st.cache_data()
 def load_df(df_bytes) -> pd.DataFrame:
     """recibe el objeto UploadedFile de Streamlit
@@ -230,8 +236,8 @@ def traffic_model():
         st.divider()
         texto("Predecir", formato='b')
         # TODO: Meter desplegable para elegir entre más modelos ?
-        with open('models/traffic_xgboost_STM.pkl', 'rb') as f:            
-            model = pickle.load(f)
+        model = load_model('models/traffic_xgboost_STM.pkl')
+        
         añadir_salto()
         # Mostrar detalles del modelo
         with st.expander("Ver detalles del modelo **XGBoost**"):
@@ -246,16 +252,16 @@ def traffic_model():
         inferir_btn = st.button("Predecir")
         if inferir_btn:            
             # Guardamos en sesión y_preds y y_preds_raw
-            try:
-                with st.spinner("Calculando..."):
+            with st.spinner("Calculando..."):
+                try:
                     y_preds, y_prob = inferir_multiclass(model, X_test, "Traffic Situation")
                     y_preds_raw = y_preds.replace(inverted_labels_map)
-                st.session_state["traffic"].update({"y_preds": y_preds,
+                    st.session_state["traffic"].update({"y_preds": y_preds,
                                                     "y_preds_raw": y_preds_raw,
                                                     "y_prob": y_prob})
-            except Exception as e:
-                st.error(f"Se ha producido un error al lanzar las predicciones: {e}")
-                st.stop()
+                except Exception as e:
+                    st.error(f"Se ha producido un error al lanzar las predicciones: {e}")
+                    st.stop()
             st.success("Inferencia completada correctamente.")
 
         if (y_preds:=st.session_state.get("traffic", {}).get("y_preds")) is not None:
