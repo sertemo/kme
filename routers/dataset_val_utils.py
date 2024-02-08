@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from typing import Iterable, Union
 
+@st.cache_data()
 def verificar_dataset_vacio(X_test:pd.DataFrame) -> Union[bool, None]:
     """Verifica que el dataframe tenga registros
 
@@ -23,6 +24,7 @@ def verificar_dataset_vacio(X_test:pd.DataFrame) -> Union[bool, None]:
         st.stop()
     return False
 
+@st.cache_data()
 def verificar_no_class(X_test:pd.DataFrame, nombres_targets:list=['target', 'label', 'class']) -> Union[bool, None]:
     """Verifica que el dataset no tenga variable Targets
     Se le puede pasar el nombre de las columnas a excluir. Por defecto: target, label y class
@@ -37,6 +39,7 @@ def verificar_no_class(X_test:pd.DataFrame, nombres_targets:list=['target', 'lab
             break
     return True
 
+@st.cache_data()
 def verificar_columnas_correctas(X_test:pd.DataFrame, columnas_correctas:Iterable) -> Union[bool, None]:
     """Verifica si el nombre de las columnas de un dataset son las correctas y se corresponden
     con las pasadas por columnas_correctas
@@ -58,6 +61,7 @@ def verificar_columnas_correctas(X_test:pd.DataFrame, columnas_correctas:Iterabl
             st.error(f"**{columna}** no es una columna correcta. Los nombres correctos son: **{', '.join(columnas_correctas)}**")
             st.stop()
     return True
+
 
 def verificar_columna_unica(y_test:pd.DataFrame) -> None:
     """Verifica que haya una sola columna en el dataframe,
