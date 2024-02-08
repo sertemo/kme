@@ -35,6 +35,9 @@ VALORES_CORRECTOS = {'x', 'o', 'b'}
 labels_map = {"colina": 1, "valle": 0}
 inverted_labels_map = {v: k for k, v in labels_map.items()}
 
+@st.cache_data()
+def cargar_x_test(X_test_bytes) -> pd.DataFrame:
+    return pd.read_csv(BytesIO(X_test_bytes.read()))
 
 def mostrar_resumen_modelo(model:SVC) -> None:
     """Muestra información de un modelo SVC en streamlit
@@ -115,7 +118,7 @@ def hillvalley_model():
 
     if X_test_bytes is not None:
         # Instanciamos el dataset pasandolo por el método read_csv
-        X_test_raw = pd.read_csv(BytesIO(X_test_bytes.read()))
+        X_test_raw = cargar_x_test(X_test_bytes)
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
         # Verificar que no haya columna label o target o class
