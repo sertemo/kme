@@ -75,6 +75,22 @@ def verificar_columna_unica(y_test:pd.DataFrame) -> None:
         st.error("El dataframe **y_test** solo puede tener 1 columna")
         st.stop()
 
+def verificar_num_columnas(X_test: pd.DataFrame, columnas_correctas: set) -> None:
+    """Verifica que el número de columnas coincida
+    con el numero correcto
+
+    Parameters
+    ----------
+    X_test : pd.DataFrame
+        _description_
+    columnas_correctas : set
+        _description_
+    """
+    if len(X_test.columns) != len(columnas_correctas):
+        st.error(f"El dataset **X_test** tiene un número de columnas incorrecto. Las columnas \
+                válidas son: {', '.join(columnas_correctas)}")
+        st.stop()
+
 def verificar_y_test_binario(y_test:pd.DataFrame) -> None:
     """Verifica que en la primera columna (y se supone que única) solo haya 2 valores distintos.
     Da igual cuales. 

@@ -15,6 +15,7 @@ import streamlit as st
 
 from routers.dataset_val_utils import (verificar_dataset_vacio,
                                             verificar_columnas_correctas,
+                                            verificar_num_columnas,
                                             verificar_no_class,
                                             verificar_cantidad_registros,
                                             verificar_columna_unica,
@@ -114,13 +115,13 @@ def aidtec_model():
         # Instanciamos el dataset pasandolo por el método read_csv
         try:
             X_test_raw = load_df(X_test_bytes_wine)
-            st.dataframe(X_test_raw)
         except WrongDatasetError as exc:
             st.error(f"Se ha producido un error al cargar el archivo: {exc}")
             st.stop()
         # Verificamos que haya algo dentro
         verificar_dataset_vacio(X_test_raw)
-        # Verificar que no haya columna label o target o class
+        # Verificar que el numero de columnas sea correcto
+        verificar_num_columnas(X_test_raw, COLUMNAS_CORRECTAS)
         # Verificar que el nombre de las columnas sea el esperado
         verificar_columnas_correctas(X_test_raw, COLUMNAS_CORRECTAS)
         # Verificamos que los valores sean los correcots
