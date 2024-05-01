@@ -1,14 +1,14 @@
 """Script que recoge la lógica del desafío de AidTec Solutions respecto a la calidad del vino"""
 
 
+import io
 import os
-import pickle
 from textwrap import dedent
-from typing import Union
 
-import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
+import pickle
+import requests
 from sklearn.preprocessing import LabelEncoder
 import streamlit as st
 
@@ -19,8 +19,7 @@ from routers.dataset_val_utils import (verificar_dataset_vacio,
                                             verificar_cantidad_registros,
                                             verificar_columna_unica,
                                             verificar_valores_concretos)
-from routers.metrics_utils import (plotear_matriz_confusion,
-                                plot_confmat,
+from routers.metrics_utils import (plot_confmat,
                                 plot_roc_auc_multiclass,
                                 plot_precision_recall_curve,
                                 computar_otras_metricas,
@@ -44,9 +43,16 @@ COLUMNAS_CORRECTAS = {'acidez fija', 'acidez volatil', 'acido citrico', 'azucar 
 
 
 @st.cache_resource()
-def load_model(model_path:str) -> SerializableClassifier:
+def load_model_from_disk(model_path: str) -> SerializableClassifier:
     model = SerializableClassifier.load(model_path=model_path)
     return model
+
+@st.cache_resource(show_spinner="Descargando el modelo ...")
+def load_model_from_url(url: str) -> SerializableClassifier:
+    r = requests.get(url)
+    if r.status_code == 200:
+        model = pickle.load(io.BytesIO(r.content))
+        return model
 
 
 @st.cache_data()
@@ -149,7 +155,15 @@ def aidtec_model():
 
         st.divider()
         texto("Predecir", formato='b')
-        model = load_model('models/wine_random_forest_STM.pkl')
+        #model = load_model_from_disk('models/wine_random_forest_STM.pkl')
+        model = load_model_from_url(
+            'https://github.com/sertemo/kme/raw/main/models/wine_random_forest_STM.pkl'
+            )
+        if model is not None:
+            st.success("Modelo cargado correctamente!")
+        else:
+            st.error("Fallo al cargar el modelo.")
+            st.stop()
         
         añadir_salto()
         # Mostrar detalles del modelo
@@ -208,21 +222,18 @@ def aidtec_model():
                 verificar_cantidad_registros(y_test_raw, y_preds)
                 st.success('OK')
                 # Guardamos en la sesión
-                st.session_state[NOMBRE_DESAFIO].update({
-                    "y_test": y_test,
-                    "y_test_raw": y_test_raw})
+                st.session_state[NOMBRE_DESAFIO].update({"y_test_raw": y_test_raw})
 
             # Evaluación y_preds vs y_test
-            if (y_test:=st.session_state.get(NOMBRE_DESAFIO, {}).get("y_test")) is not None:
+            if (y_test_raw := st.session_state.get(NOMBRE_DESAFIO, {}).get("y_test_raw")) is not None:
                 y_prob = st.session_state.get(NOMBRE_DESAFIO, {}).get("y_prob")
-                y_test_raw = st.session_state.get(NOMBRE_DESAFIOv, {}).get("y_test_raw")
                 # Posibilidad de visualizar y_test
                 if st.toggle("Visualizar **y_test**"):
                     st.dataframe(y_test_raw, width=200, hide_index=False)
                 añadir_salto()
                 # Añadimos accuracy y el balanced accuracy
                 col1, col2 = st.columns(2)
-                acc, balanced_acc = computar_accuracies(y_test, y_preds)
+                acc, balanced_acc = computar_accuracies(y_test_raw, y_preds)
                 with col1:
                     st.metric("Accuracy", f"{acc:.2%}")
                 with col2:
@@ -231,17 +242,22 @@ def aidtec_model():
                 col1, col2 = st.columns(2)
                 with col1:
                     texto("Matriz de Confusión", formato='b', font_size=20)
-                    plt = plot_confmat(y_test, y_preds, list(labels_map))
+                    plt = plot_confmat(y_test_raw, y_preds, [str(i) for i in range(3, 10)])
                     st.pyplot(plt) 
                 with col2:
                     texto("ROC AUC", formato='b', font_size=20)
-                    plt = plot_roc_auc_multiclass(y_test, y_prob, inverted_labels_map)
+                    plt = plot_roc_auc_multiclass(
+                        y_test_raw,
+                        y_prob,
+                        dict(enumerate([str(i) for i in range(3, 10)],
+                                    start=3))
+                        )
                     st.pyplot(plt)
                 añadir_salto(2)
                 col1, col2, col3 = st.columns(3)
                 with col2:
                     texto("Otras métricas", formato='b', font_size=20)
-                    precision, recall, f1, mcc = computar_otras_metricas(y_test, y_preds, list(inverted_labels_map))
+                    precision, recall, f1, mcc = computar_otras_metricas(y_test_raw, y_preds, [str(i) for i in range(3, 10)])
                     col1, col2,  = st.columns(2)
                     with col1:
                         st.metric("Precision", f"{precision:.2%}")
