@@ -2,7 +2,7 @@
 import joblib
 import pickle
 from pathlib import Path
-from typing import cast, Any
+from typing import cast, Any, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -66,13 +66,13 @@ class SerializableClassifier(
 
     def fit(
         self,
-        X: NDArray[np.float64] | pd.DataFrame,
-        y: NDArray[np.float64] | pd.DataFrame,
+        X: Union[NDArray[np.float64], pd.DataFrame],
+        y: Union[NDArray[np.float64], pd.DataFrame],
     ) -> "SerializableClassifier":
         self.classifier.fit(X, y)
         return self
 
-    def predict(self, X: NDArray[np.float64] | pd.DataFrame) -> NDArray[np.int64]:
+    def predict(self, X: Union[NDArray[np.float64], pd.DataFrame]) -> NDArray[np.int64]:
         check_is_fitted(self.classifier)
         predictions: NDArray[np.int64] = self.classifier.predict(X)
         return predictions

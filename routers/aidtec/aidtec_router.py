@@ -18,7 +18,7 @@ from routers.dataset_val_utils import (verificar_dataset_vacio,
                                             verificar_no_class,
                                             verificar_cantidad_registros,
                                             verificar_columna_unica,
-                                            verificar_valores_concretos)
+                                            )
 from routers.metrics_utils import (plot_confmat,
                                 plot_roc_auc_multiclass,
                                 plot_precision_recall_curve,
@@ -47,7 +47,7 @@ def load_model_from_disk(model_path: str) -> SerializableClassifier:
     model = SerializableClassifier.load(model_path=model_path)
     return model
 
-@st.cache_resource(show_spinner="Descargando el modelo ...")
+@st.cache_resource(show_spinner="Descargando el modelo de GitHub...")
 def load_model_from_url(url: str) -> SerializableClassifier:
     r = requests.get(url)
     if r.status_code == 200:
